@@ -1,0 +1,31 @@
+{
+  "name": "oomph-redis-orm",
+  "version": "0.0.0",
+  "description": "Redis ORM for oomph",
+  "main": "gulpfile.js",
+  "devDependencies": {
+    "coffee-script": "^1.9.1",
+    "gulp": "^3.8.11",
+    "jasmine": "^2.3.1",
+    "lodash": "~3.5.0"
+  },
+  "scripts": {
+    "start": "coffee app/serverApp.coffee",
+    "test": "jasmine"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kenspeckled/oomph-redis-orm.git"
+  },
+  "author": "Kenspeckle",
+  "bugs": {
+    "url": "https://github.com/Kenspeckled/oomph-redis-orm/issues"
+  },
+  "homepage": "https://github.com/Kenspeckled/oomph-redis-orm",
+  "dependencies": {
+    "gulp-jasmine": "^2.0.1",
+    "lodash": "~3.5.0",
+    "promise": "^7.0.3",
+    "redis": "^0.12.1"
+  }
+}
