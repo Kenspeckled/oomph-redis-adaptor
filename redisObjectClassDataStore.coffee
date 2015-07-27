@@ -492,15 +492,11 @@ redisObjectDataStore =
           maxValue = '+inf'
           if optionValue.greaterThan
             minValue = optionValue.greaterThan + 1
-            maxValue = '+inf'
           if optionValue.greaterThanOrEqualTo
             minValue = optionValue.greaterThanOrEqualTo
-            maxValue = '+inf'
           if optionValue.lessThan
-            minValue = '-inf'
             maxValue = optionValue.lessThan - 1
           if optionValue.lessThanOrEqualTo
-            minValue = '-inf'
             maxValue = optionValue.lessThanOrEqualTo
           if optionValue.equalTo
             minValue = optionValue.equalTo
