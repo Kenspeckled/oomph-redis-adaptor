@@ -364,7 +364,9 @@ redisObjectDataStore =
   moduleName: "redisObjectDataStore"
 
   moduleInitialise: ->
-    @redis = redis.createClient()
+    port = process.env.REDIS_CLIENT_PORT || 6379
+    host = process.env.REDIS_CLIENT_HOST || '127.0.0.1'
+    @redis = redis.createClient(port, host) 
 
   all: (args) ->
     allArgs = _.pick(args, ['sortBy', 'sortDirection', 'limit', 'offset'])
