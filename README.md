@@ -1,2 +1,2 @@
-# oomph-redis-orm
-Redis ORM for oomph
+# oomph-redis-adaptor
+Redis adaptor for oomph
