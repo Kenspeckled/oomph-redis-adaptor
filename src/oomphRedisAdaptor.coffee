@@ -9,7 +9,7 @@ save = require './adaptorMethods/save'
 
 oomphRedisAdaptor =
     
-  addObjectDataMappingToClass: (_class) ->
+  connectAdaptor: (_class) ->
 
     port = global.oomphRedisPort || 6379
     host = global.oomphRedisHost || '127.0.0.1'
