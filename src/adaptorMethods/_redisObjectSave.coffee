@@ -1,4 +1,5 @@
 Promise = require 'promise'
+oomph = require 'oomph'
 _ = require 'lodash'
 _utilities = require './utilities'
 
@@ -203,7 +204,7 @@ performValidations = (dataFields) ->
   returnedValidations = _.map @classAttributes, (attrObj, attrName) =>
     if attrObj.validates
       attrValue = dataFields[attrName]
-      return validate.apply(this, [attrObj.validates, attrName, attrValue])
+      return oomph.validate.apply(this, [attrObj.validates, attrName, attrValue])
   Promise.all(returnedValidations).then (validationArray) ->
     errors =  _(validationArray).flattenDeep().compact().value()
     throw errors if not _.isEmpty(errors)
