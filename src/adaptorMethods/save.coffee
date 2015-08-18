@@ -7,10 +7,10 @@ save = ->
     updateFields = {}
     for attr in Object.keys(@constructor.classAttributes)
       updateFields[attr] = this[attr] if this[attr]
-    redisUpdate(@id, updateFields).then (newProps) =>
+    redisUpdate.apply(@constructor, [@id, updateFields]).then (newProps) =>
       _.assign(this, newProps)
   else
-    redisCreate(this).then (newProps) =>
+    redisCreate.apply(@constructor, [this]).then (newProps) =>
       _.assign(this, newProps)
   
 module.exports = save

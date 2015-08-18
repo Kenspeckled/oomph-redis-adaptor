@@ -8,7 +8,7 @@ findKeywordsInAnyFields = (fields, keywords, weightOptions) ->
       keyNames = []
       for field in fields
         weight = (if weightOptions[field] and weightOptions[field].weight then weightOptions[field].weight else 1)
-        keyNames.push name: @name + "#" + field + "/" + keyword, weight: weight
+        keyNames.push name: @className + "#" + field + "/" + keyword, weight: weight
       unionKey = 'keywordUnionSet:' + _utilities.randomString(5)
       unionKeyPromise = new Promise (resolve) =>
         @redis.zunionstore unionKey, keyNames.length, _.map(keyNames, 'name')..., 'weights', _.map(keyNames, 'weight')..., ->
@@ -49,9 +49,9 @@ where = (args) ->
   sortedSetKeys = []
   unionSortedSetKeys = []
   if args.sortBy == 'random'
-    sortedSetKeys.push name: self.name + '>id'
+    sortedSetKeys.push name: self.className + '>id'
   else if args.sortBy != 'relevance'
-    sortedSetKeys.push name: self.name + '>' + args.sortBy
+    sortedSetKeys.push name: self.className + '>' + args.sortBy
   weightOptions = {}
   keywordSearchPromise = new Promise (r) -> r()
   if args.includes
@@ -72,7 +72,7 @@ where = (args) ->
       for field in fields
         weight = (if weightOptions[field] and weightOptions[field].weight then weightOptions[field].weight else 1)
         for keyword in keywords
-          sortedSetKeys.push name: self.name + "#" + field + "/" + keyword, weight: weight
+          sortedSetKeys.push name: self.className + "#" + field + "/" + keyword, weight: weight
   whereConditionPromises = []
   for option in Object.keys(args)
     optionValue = args[option]
@@ -81,7 +81,7 @@ where = (args) ->
     switch self.classAttributes[option].dataType
       when 'integer' #add less than and greater than functionality
         tempIntegerKey = 'temporaryIntegerSet:' + _utilities.randomString(5)
-        integerSortedSetName = self.name + '>' + option
+        integerSortedSetName = self.className + '>' + option
         minValue = '-inf'
         maxValue = '+inf'
         if optionValue.greaterThan
@@ -101,7 +101,7 @@ where = (args) ->
         sortedSetKeys.push name: tempIntegerKey
         sortedSetKeys.push name: integerSortedSetName
       when 'boolean'
-        sortedSetKeys.push  name: self.name + "#" + option + ":" + optionValue
+        sortedSetKeys.push  name: self.className + "#" + option + ":" + optionValue
       when 'reference'
         referenceModelName = self.classAttributes[option].referenceModelName
         if referenceModelName 
@@ -109,16 +109,16 @@ where = (args) ->
           if self.classAttributes[option].many 
             if optionValue.includesAllOf
               _.each optionValue.includesAllOf, (id) ->
-                sortedSetKeys.push name: referenceModelName + ':' + id + '#' + namespace + ':' + self.name + 'Refs'
+                sortedSetKeys.push name: referenceModelName + ':' + id + '#' + namespace + ':' + self.className + 'Refs'
             if optionValue.includesAnyOf
               _.each optionValue.includesAnyOf, (id) ->
-                unionSortedSetKeys.push name: referenceModelName + ':' + id + '#' + namespace + ':' + self.name + 'Refs'
+                unionSortedSetKeys.push name: referenceModelName + ':' + id + '#' + namespace + ':' + self.className + 'Refs'
           else
             if optionValue.anyOf
               _.each optionValue.anyOf, (id) ->
-                unionSortedSetKeys.push name: referenceModelName + ':' + id + '#' + namespace + ':' + self.name + 'Refs'
+                unionSortedSetKeys.push name: referenceModelName + ':' + id + '#' + namespace + ':' + self.className + 'Refs'
             else
-              sortedSetKeys.push name: referenceModelName + ':' + optionValue + '#' + namespace + ':' + self.name + 'Refs'
+              sortedSetKeys.push name: referenceModelName + ':' + optionValue + '#' + namespace + ':' + self.className + 'Refs'
   prepareWhereConditionPromise = Promise.all(whereConditionPromises).then -> 
     if _.isEmpty(unionSortedSetKeys)
       keywordSearchPromise
@@ -147,7 +147,7 @@ where = (args) ->
       _.each args.facets, (f) ->
         facetResults[f] = []
         facetsPromises.push new Promise (resolve) ->
-          self.redis.sort idKey, 'by', 'nosort', 'get', self.name + ':*->' + f, (err, facetList) ->
+          self.redis.sort idKey, 'by', 'nosort', 'get', self.className + ':*->' + f, (err, facetList) ->
             counts = _.countBy facetList, (p) -> p
             for x in Object.keys(counts)
               facetResults[f].push item: x, count: counts[x]
@@ -169,7 +169,7 @@ where = (args) ->
         self.find(id)
       Promise.all(promises).then (resultItems) ->
         _resultObject =
-          name: self.name
+          className: self.className
           total: resultObject.totalResults
           offset: start
           facets: resultObject.facetResults

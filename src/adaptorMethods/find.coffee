@@ -32,7 +32,7 @@ find = (id) ->
   self = this
   referencePromises = []
   getHash = new Promise (resolve, reject) ->
-    self.redis.hgetall self.name + ":" + id, (error, hash) ->
+    self.redis.hgetall self.className + ":" + id, (error, hash) ->
       if !hash
         reject new Error "Not Found"
       else
@@ -46,7 +46,7 @@ find = (id) ->
         if attrSettings.many
           getReferenceIdsFn = (propertyName, referenceModelName) ->
             new Promise (resolve, reject) ->
-              referenceKey = self.name + ':' + id + '#' + propertyName + ':' + referenceModelName + 'Refs'
+              referenceKey = self.className + ':' + id + '#' + propertyName + ':' + referenceModelName + 'Refs'
               self.redis.smembers referenceKey, (err, ids) ->
                 hashObj = {propertyName, referenceModelName}
                 resolve {ids, hashObj}

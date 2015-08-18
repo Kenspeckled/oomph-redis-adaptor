@@ -7,7 +7,7 @@ removeIndexedSearchableString = (attr, words, id) ->
     wordSegment = ''
     for char in word
       wordSegment += char
-      wordSegmentKey = @name + '#' + attr + '/' + wordSegment
+      wordSegmentKey = @className + '#' + attr + '/' + wordSegment
       indexPromiseFn = (wordSegmentKey, id) =>
         new Promise (resolve) =>
           @redis.zrem wordSegmentKey, id, (res) ->
@@ -31,7 +31,7 @@ update = (id, updateFields, skipValidation) ->
         remove = true
         removeValue = updateFields[attr]
         attr = attr.replace(/^remove_/, '')
-      orderedSetName = self.name + '>' + attr
+      orderedSetName = self.className + '>' + attr
       originalValue = originalObj[attr]
       newValue = updateFields[attr]
       # if there is an actual change or it's a boolean
@@ -42,7 +42,7 @@ update = (id, updateFields, skipValidation) ->
         return if !obj
         switch obj.dataType
           when 'integer'
-            sortedSetName = self.name + '>' + attr
+            sortedSetName = self.className + '>' + attr
             multi.zrem sortedSetName, id
           when 'text'
             if obj.searchable
@@ -53,23 +53,23 @@ update = (id, updateFields, skipValidation) ->
             if obj.searchable
               callbackPromises.push removeIndexedSearchableString.apply(self, [attr, originalValue, id])
             if obj.identifiable or obj.url
-              multi.del self.name + "#" + attr + ":" + originalValue
+              multi.del self.className + "#" + attr + ":" + originalValue
           when 'reference'
             namespace = obj.reverseReferenceAttribute || attr
             if obj.many
               if remove
-                multi.srem self.name + ":" +  id + "#" + attr + ':' + obj.referenceModelName + 'Refs', removeValue...
+                multi.srem self.className + ":" +  id + "#" + attr + ':' + obj.referenceModelName + 'Refs', removeValue...
                 removeValue.forEach (vid) ->
-                  multi.srem obj.referenceModelName + ":" +  vid + "#" + namespace + ':' + self.name + 'Refs', id
+                  multi.srem obj.referenceModelName + ":" +  vid + "#" + namespace + ':' + self.className + 'Refs', id
               else
                 originalIds = _.map(originalValue, 'id')
                 intersectingValues = _.intersection(originalIds, newValue)
                 updateFieldsDiff[attr] = intersectingValues if !_.isEmpty(intersectingValues)
             else
               if remove
-                multi.srem obj.referenceModelName + ":" + originalValue + "#" + namespace + ':' + self.name + 'Refs', id
+                multi.srem obj.referenceModelName + ":" + originalValue + "#" + namespace + ':' + self.className + 'Refs', id
           when 'boolean'
-            multi.zrem self.name + "#" + attr + ":" + originalValue, id
+            multi.zrem self.className + "#" + attr + ":" + originalValue, id
     multiPromise = new Promise (resolve, reject) ->
       multi.exec ->
         sendAttributesForSaving.apply(self, [updateFieldsDiff, skipValidation]).then (writtenObj) ->

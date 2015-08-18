@@ -18,12 +18,12 @@ generateUniqueId = ->
   newIdPromise = _utilities.promiseWhile condition, ->
     new Promise (resolve) ->
       id = generateId()
-      self.redis.lrange self.name + '#uniqueQueuedIds', 0, -1, (error, idsArray) ->
+      self.redis.lrange self.className + '#uniqueQueuedIds', 0, -1, (error, idsArray) ->
         if _.includes(idsArray, id)
           id = generateId()
           resolve()
         else
-          self.redis.rpush self.name + '#uniqueQueuedIds', id, (error, response) ->
+          self.redis.rpush self.className + '#uniqueQueuedIds', id, (error, response) ->
             uniqueId = true
             resolve(id)
 
@@ -32,7 +32,7 @@ indexSortedSet = (setKey, attr) ->
   listKey = setKey + 'TempList'
   setTmpKey = setKey + 'TempList'
   sortPromise = new Promise (resolve, reject) =>
-    @redis.sort setKey, 'by', @name + ':*->' + attr, 'alpha', 'store', listKey, (error, newLength) ->
+    @redis.sort setKey, 'by', @className + ':*->' + attr, 'alpha', 'store', listKey, (error, newLength) ->
       resolve(newLength)
   addToTmpSetPromise = sortPromise.then (listLength) =>
     multi = @redis.multi()
@@ -57,7 +57,7 @@ indexSearchableString = (attr, words, id) ->
     wordSegment = ''
     for char in word
       wordSegment += char
-      wordSegmentKey = @name + '#' + attr + '/' + wordSegment
+      wordSegmentKey = @className + '#' + attr + '/' + wordSegment
       indexPromiseFn = (wordSegmentKey, id) =>
         new Promise (resolve) =>
           @redis.zadd wordSegmentKey, 1, id, (res) ->
@@ -97,7 +97,7 @@ writeAttributes = (props) ->
             if obj.url and obj.urlBaseAttribute
               # FIXME: Handle duplicate urls and force them to be unique by appending sequential numbers
               storableProps[attr] = _utilities.urlString(props[obj.urlBaseAttribute]) if !storableProps[attr]
-      self.redis.hmset self.name + ":" + props.id, storableProps, (err, res) ->
+      self.redis.hmset self.className + ":" + props.id, storableProps, (err, res) ->
         resolve(storableProps)
   indexPromise = writePromise.then (props) ->
     indexingPromises = []
@@ -108,21 +108,21 @@ writeAttributes = (props) ->
         self.redis.zadd sortedSetName, largestSortedSetSize, props.id, (error, res) ->
           indexSortedSet.apply(self, [sortedSetName, attributeName]).then ->
             resolve()
-    sortedSetName = self.name + ">id"
+    sortedSetName = self.className + ">id"
     indexingPromises.push indexPromiseFn(sortedSetName, "id")
     for attr, obj of self.classAttributes
       continue if props[attr] == undefined #props[attr] can be false for boolean dataType
       value = props[attr]
       switch obj.dataType
         when 'integer'
-          sortedSetName = self.name + ">" + attr
+          sortedSetName = self.className + ">" + attr
           multi.zadd sortedSetName, parseInt(value), props.id #sorted set
         when 'string'
           if obj.sortable
-            sortedSetName = self.name + ">" + attr
+            sortedSetName = self.className + ">" + attr
             indexingPromises.push indexPromiseFn(sortedSetName, attr)
           if obj.identifiable or obj.url
-            multi.set self.name + "#" + attr + ":" + value, props.id #string
+            multi.set self.className + "#" + attr + ":" + value, props.id #string
           if obj.searchable
             indexingPromises.push indexSearchableString.apply(self, [attr, value, props.id])
         when 'text'
@@ -130,16 +130,16 @@ writeAttributes = (props) ->
             indexingPromises.push indexSearchableString.apply(self, [attr, value, props.id])
         when 'boolean'
           if _.includes([true, 'true', false, 'false'], value)
-            multi.zadd self.name + "#" + attr + ":" + value, 1, props.id #set
+            multi.zadd self.className + "#" + attr + ":" + value, 1, props.id #set
         when 'reference'
           namespace = obj.reverseReferenceAttribute || attr
           if obj.many
             multipleValues = _.compact(value.split(","))
-            multi.sadd self.name + ":" +  props.id + "#" + attr + ':' + obj.referenceModelName + 'Refs', multipleValues...
+            multi.sadd self.className + ":" +  props.id + "#" + attr + ':' + obj.referenceModelName + 'Refs', multipleValues...
             multipleValues.forEach (vid) ->
-              multi.sadd obj.referenceModelName + ":" +  vid + "#" + namespace + ':' +  self.name + 'Refs', props.id
+              multi.sadd obj.referenceModelName + ":" +  vid + "#" + namespace + ':' +  self.className + 'Refs', props.id
           else
-            multi.sadd obj.referenceModelName + ":" + value + "#" + namespace + ':' +  self.name + 'Refs', props.id
+            multi.sadd obj.referenceModelName + ":" + value + "#" + namespace + ':' +  self.className + 'Refs', props.id
         else
           if obj['dataType'] != null
             reject new Error "Unrecognised dataType " + obj.dataType
@@ -150,7 +150,7 @@ writeAttributes = (props) ->
     return props 
 
 clearUniqueQueuedIds = ->
-  @redis.del @name + '#uniqueQueuedIds'
+  @redis.del @className + '#uniqueQueuedIds'
 
 
 processWriteQueue = ->
@@ -160,16 +160,16 @@ processWriteQueue = ->
   writeReturnObject = {}
   processPromise = _utilities.promiseWhile condition, ->
     writePromise = new Promise (resolve, reject) ->
-      self.redis.rpop self.name + "#TmpQueue", (error, tmpId) ->
+      self.redis.rpop self.className + "#TmpQueue", (error, tmpId) ->
         if tmpId
-          self.redis.hgetall self.name + "#TmpQueueObj:" + tmpId, (err, props) ->
-            self.redis.del self.name + "#TmpQueueObj:" + tmpId
+          self.redis.hgetall self.className + "#TmpQueueObj:" + tmpId, (err, props) ->
+            self.redis.del self.className + "#TmpQueueObj:" + tmpId
             if props
               writeAttributes.apply(self, [props]).then (writtenObject) ->
                 writeReturnObject[tmpId] = writtenObject
                 resolve()
             else
-              reject new Error "No properties in Queued Object " + self.name + "#TmpQueueObj:" + tmpId
+              reject new Error "No properties in Queued Object " + self.className + "#TmpQueueObj:" + tmpId
         else
           clearUniqueQueuedIds.apply(self)
           hasQueue = false
@@ -184,8 +184,8 @@ addToWriteQueue = (props) ->
   self = this
   tmpId = "TmpId" + generateId() + _utilities.randomString(12)
   p = new Promise (resolve) ->
-    self.redis.hmset self.name + "#TmpQueueObj:" + tmpId, props, (err, res) =>
-      self.redis.lpush self.name + "#TmpQueue", tmpId, (error, newListLength) =>
+    self.redis.hmset self.className + "#TmpQueueObj:" + tmpId, props, (err, res) =>
+      self.redis.lpush self.className + "#TmpQueue", tmpId, (error, newListLength) =>
         resolve(tmpId)
   p.then (tmpId) ->
     clearTimeout self._ORMWriteQueueTimeout

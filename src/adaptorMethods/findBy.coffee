@@ -8,7 +8,7 @@ findBy = (option) ->
       resolve condition
     else
       if @classAttributes[optionName].dataType == 'string' and (@classAttributes[optionName].identifiable or @classAttributes[optionName].url)
-        stringName = @name + "#" + optionName + ":" + condition
+        stringName = @className + "#" + optionName + ":" + condition
         @redis.get stringName, (err, res) ->
           resolve res
       else
