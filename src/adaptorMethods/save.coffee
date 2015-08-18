@@ -1,3 +1,5 @@
+redisCreate = require './create'
+redisUpdate = require './update'
 _ = require 'lodash'
 
 save = ->
@@ -5,10 +7,10 @@ save = ->
     updateFields = {}
     for attr in Object.keys(@constructor.classAttributes)
       updateFields[attr] = this[attr] if this[attr]
-    @constructor.update(@id, updateFields).then (newProps) =>
+    redisUpdate(@id, updateFields).then (newProps) =>
       _.assign(this, newProps)
   else
-    @constructor.create(this).then (newProps) =>
+    redisCreate(this).then (newProps) =>
       _.assign(this, newProps)
   
 module.exports = save
