@@ -1,3 +1,4 @@
+_ = require 'lodash'
 sendAttributesForSaving = require './_redisObjectSave'
 
 removeIndexedSearchableString = (attr, words, id) ->
