@@ -18,7 +18,6 @@ removeIndexedSearchableString = (attr, words, id) ->
 
 update = (id, updateFields, skipValidation) ->
   self = this
-  updateFieldsDiff = { id: id } #need to send existing id to stop new id being generated
   callbackPromises = []
   multi = self.redis.multi()
   getOriginalObjPromise = self.find(id).then (originalObj) ->
@@ -26,6 +25,7 @@ update = (id, updateFields, skipValidation) ->
       throw new Error "Not Found"
     return originalObj
   getOriginalObjPromise.then (originalObj) ->
+    updateFieldsDiff = originalObj 
     for attr in Object.keys(updateFields)
       remove = false
       if attr.match(/^remove_/)
