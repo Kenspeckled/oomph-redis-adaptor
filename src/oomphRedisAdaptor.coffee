@@ -25,7 +25,7 @@ oomphRedisAdaptor =
     #_class.destroy = destroy
 
     _class::save = save
-    _class::isValid = -> performValidations(this)
+    #_class::isValid = -> performValidations(this)
 
     return _class
 

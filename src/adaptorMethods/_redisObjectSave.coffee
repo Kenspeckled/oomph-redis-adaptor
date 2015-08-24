@@ -3,7 +3,6 @@ oomph = require 'oomph'
 _ = require 'lodash'
 _utilities = require './utilities'
 
-_oomphRedisObjectSaveQueueCallbacks = {}
 numberOfExtraCharactersOnId = 2
 
 generateId = ->
@@ -26,7 +25,6 @@ generateUniqueId = ->
           self.redis.rpush self.className + '#uniqueQueuedIds', id, (error, response) ->
             uniqueId = true
             resolve(id)
-
 
 indexSortedSet = (setKey, attr) ->
   listKey = setKey + 'TempList'
@@ -96,7 +94,7 @@ writeAttributes = (props) ->
           when 'string'
             if obj.url and obj.urlBaseAttribute
               # FIXME: Handle duplicate urls and force them to be unique by appending sequential numbers
-              storableProps[attr] = _utilities.urlString(props[obj.urlBaseAttribute]) if !storableProps[attr]
+              storableProps[attr] = _utilities.urlString(props[obj.urlBaseAttribute]) if !storableProps[attr] # only define url if not manually defined
       self.redis.hmset self.className + ":" + props.id, storableProps, (err, res) ->
         resolve(storableProps)
   indexPromise = writePromise.then (props) ->
@@ -149,17 +147,15 @@ writeAttributes = (props) ->
   indexPromise.then ->
     return props 
 
-clearUniqueQueuedIds = ->
-  @redis.del @className + '#uniqueQueuedIds'
-
-
 processWriteQueue = ->
+  console.log "processing write queue"
   self = this
   hasQueue = true
   condition = -> hasQueue
   writeReturnObject = {}
   processPromise = _utilities.promiseWhile condition, ->
-    writePromise = new Promise (resolve, reject) ->
+    console.log "loop"
+    new Promise (resolve, reject) ->
       self.redis.rpop self.className + "#TmpQueue", (error, tmpId) ->
         if tmpId
           self.redis.hgetall self.className + "#TmpQueueObj:" + tmpId, (err, props) ->
@@ -171,12 +167,14 @@ processWriteQueue = ->
             else
               reject new Error "No properties in Queued Object " + self.className + "#TmpQueueObj:" + tmpId
         else
-          clearUniqueQueuedIds.apply(self)
+          #clear uniqueQueuedIds
+          self.redis.del self.className + '#uniqueQueuedIds'
           hasQueue = false
-          resolve()
+          resolve(writeReturnObject)
   processPromise.then ->
     _.each writeReturnObject, (obj, tmpId) ->
-      _oomphRedisObjectSaveQueueCallbacks["attributes_written_" + tmpId].call(self, obj)
+      console.log "process", obj, tmpId
+      oomph.publishSubscribe.broadcast.apply(self, ['attributes_written_' + tmpId, obj])
     return writeObjectArray
 
 
@@ -188,15 +186,12 @@ addToWriteQueue = (props) ->
       self.redis.lpush self.className + "#TmpQueue", tmpId, (error, newListLength) =>
         resolve(tmpId)
   p.then (tmpId) ->
-    clearTimeout self._ORMWriteQueueTimeout
-    self._ORMWriteQueueTimeout = setTimeout ->
-      return processWriteQueue.apply(self)
-    , 100
+    processWriteQueue.apply(self)
     new Promise (resolve) ->
       resolveFn = (obj) -> 
-        delete _oomphRedisObjectSaveQueueCallbacks["attributes_written_" + tmpId]
+        oomph.publishSubscribe.removeAllListenersOn.apply(self, ["attributes_written_" + tmpId])
         resolve(obj)
-      _oomphRedisObjectSaveQueueCallbacks["attributes_written_" + tmpId] = resolveFn
+      oomph.publishSubscribe.listen.apply(self, ['attributes_written_' + tmpId, resolveFn])
 
 performValidations = (dataFields) ->
   if _.isEmpty(dataFields)
@@ -220,11 +215,10 @@ sendAttributesForSaving = (dataFields, skipValidation) ->
     sanitisedDataFields = _(dataFields).omit(_.isNull).omit(_.isUndefined).pick(attrs).value()
     props = sanitisedDataFields
     validationPromise = performValidations.apply(this, [props])
-  new Promise (resolve, reject) =>
-    reject new Error "Properties are empty" if _.isEmpty props
-    validationPromise.then =>
-      resolve addToWriteQueue.apply(this, [props])
-    , (validationErrors) ->
-      reject validationErrors
+  throw new Error "Properties are empty" if _.isEmpty props
+  validationPromise.then =>
+    addToWriteQueue.apply(this, [props])
+  , (validationErrors) ->
+    throw validationErrors
 
 module.exports = sendAttributesForSaving
