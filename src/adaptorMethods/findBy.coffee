@@ -15,6 +15,6 @@ findBy = (option) ->
       else
         reject( throw new Error "Not an identifier" )
   p.then (res) =>
-    redisFind(res)
+    redisFind.apply(this, [res])
 
 module.exports = findBy
