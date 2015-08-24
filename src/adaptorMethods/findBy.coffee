@@ -1,3 +1,4 @@
+redisFind = require './find'
 Promise = require 'promise'
 
 findBy = (option) ->
@@ -14,6 +15,6 @@ findBy = (option) ->
       else
         reject( throw new Error "Not an identifier" )
   p.then (res) =>
-    @find(res)
+    redisFind(res)
 
 module.exports = findBy

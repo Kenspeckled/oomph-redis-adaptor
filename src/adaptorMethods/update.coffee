@@ -26,7 +26,7 @@ update = (id, updateFields, skipValidation) ->
       throw new Error "Not Found"
     return originalObj
   getOriginalObjPromise.then (originalObj) ->
-    updateFieldsDiff = originalObj 
+    updateFieldsDiff = _.clone(originalObj, true)
     for attr in Object.keys(updateFields)
       remove = false
       if attr.match(/^remove_/)
