@@ -1,3 +1,4 @@
+Promise = require 'promise'
 _ = require 'lodash'
 sendAttributesForSaving = require './_redisObjectSave'
 
