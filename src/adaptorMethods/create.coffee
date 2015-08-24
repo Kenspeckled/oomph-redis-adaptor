@@ -4,8 +4,9 @@ redisFind = require './find'
 
 create = (props, skipValidation) ->
   sendAttributesForSaving.apply(this, [props, skipValidation]).then (writtenObject) ->
-    resolve redisFind(writtenObject.id) if writtenObject
+    throw new Error 'Write error' if !writtenObject
+    return redisFind(writtenObject.id) 
   , (error) ->
-    reject error if error
+    return error
 
 module.exports = create
