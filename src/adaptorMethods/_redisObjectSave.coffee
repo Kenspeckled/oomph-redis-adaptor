@@ -28,8 +28,8 @@ generateUniqueId = ->
             resolve(id)
 
 indexSortedSet = (setKey, attr) ->
-  listKey = setKey + 'TempList'
-  setTmpKey = setKey + 'TempList'
+  listKey = setKey + 'TempList' + _utilities.randomString(3)
+  setTmpKey = setKey + 'TempList' + _utilities.randomString(3)
   sortPromise = new Promise (resolve, reject) =>
     @redis.sort setKey, 'by', @className + ':*->' + attr, 'alpha', 'store', listKey, (error, newLength) ->
       resolve(newLength)
@@ -76,55 +76,61 @@ writeAttributes = (props) ->
       resolve props.id
   writePromise = idPromise.then (id) ->
     props.id = id
-    storableProps = _.clone props
+    storableProps = _.clone props, true
     writeCallbackPromises = []
     for attr, obj of self.classAttributes
       switch obj.dataType
         when 'integer'
           if storableProps[attr]
-            storableProps[attr + '[i]'] = storableProps[attr]
+            storableProps[attr + '[i]'] = props[attr]
+            props[attr] = +props[attr] #override original props
             delete storableProps[attr]
         when 'boolean'
-          if storableProps[attr]
-            storableProps[attr + '[b]'] = storableProps[attr]
+          if storableProps[attr] != undefined
+            storableProps[attr + '[b]'] = props[attr]
+            props[attr] = !!props[attr] #override original props
             delete storableProps[attr]
         when 'reference'
           if obj.many
             delete storableProps[attr]
             storableProps[attr] = true if newObjectFlag
         when 'string'
-          if obj.url and obj.urlBaseAttribute
-            # FIXME: Handle duplicate urls and force them to be unique by appending sequential numbers
-            findExistingAttr = (attr, identifier, baseAttr) ->
+          if obj.identifier
+            identifier = _utilities.urlString(props[attr])
+            storableProps[attr] = identifier
+            props[attr] = identifier #override original props
+          if obj.url and obj.urlBaseAttribute and props[obj.urlBaseAttribute]
+            findExistingAttr = (attr, identifier) ->
               isUnique = false
               condition = -> !isUnique
               counter = 0
               _utilities.promiseWhile condition, ->
-                modifiedIdentifier = identifier 
-                modifiedIdentifier += ('-' + counter) if counter > 0
-                counter += 1
                 new Promise (resolve) ->
+                  modifiedIdentifier = identifier 
+                  modifiedIdentifier += ('-' + counter) if counter > 0
+                  counter += 1
                   self.redis.get self.className + "#" + attr + ':' + modifiedIdentifier, (err, res) ->
-                    isUnique = !res
                     storableProps[attr] = modifiedIdentifier
+                    props[attr] = modifiedIdentifier #override original props
+                    isUnique = true if !res
                     resolve()
-            identifier = _utilities.urlString(props[obj.urlBaseAttribute]) if !storableProps[attr] # only define url if not manually defined
-            writeCallbackPromises.push findExistingAttr(attr, identifier, obj.urlBaseAttribute)
+            identifier = if storableProps[attr] then _utilities.urlString(storableProps[attr]) else _utilities.urlString(props[obj.urlBaseAttribute])  # only define url if not manually defined
+            writeCallbackPromises.push findExistingAttr(attr, identifier)
     Promise.all(writeCallbackPromises).then ->
       new Promise (resolve) ->
         self.redis.hmset self.className + ":" + props.id, storableProps, (err, res) ->
           resolve(storableProps)
-  indexPromise = writePromise.then (props) ->
+  indexPromise = writePromise.then (storedProps) ->
     indexingPromises = []
     multi = self.redis.multi()
-    indexPromiseFn = (sortedSetName, attributeName) ->
+    indexPromiseFn = (sortedSetName, attributeName, propsId) ->
       largestSortedSetSize = 9007199254740992 # make sure new elements are added at the end of the set
       new Promise (resolve) ->
-        self.redis.zadd sortedSetName, largestSortedSetSize, props.id, (error, res) ->
+        self.redis.zadd sortedSetName, largestSortedSetSize, propsId, (error, res) ->
           indexSortedSet.apply(self, [sortedSetName, attributeName]).then ->
             resolve()
     sortedSetName = self.className + ">id"
-    indexingPromises.push indexPromiseFn(sortedSetName, "id")
+    indexingPromises.push indexPromiseFn(sortedSetName, "id", props.id)
     for attr, obj of self.classAttributes
       continue if props[attr] == undefined #props[attr] can be false for boolean dataType
       value = props[attr]
@@ -135,7 +141,7 @@ writeAttributes = (props) ->
         when 'string'
           if obj.sortable
             sortedSetName = self.className + ">" + attr
-            indexingPromises.push indexPromiseFn(sortedSetName, attr)
+            indexingPromises.push indexPromiseFn(sortedSetName, attr, props.id)
           if obj.identifiable or obj.url
             multi.set self.className + "#" + attr + ":" + value, props.id #string
           if obj.searchable
@@ -148,8 +154,10 @@ writeAttributes = (props) ->
             multi.zadd self.className + "#" + attr + ":" + value, 1, props.id #set
         when 'reference'
           namespace = obj.reverseReferenceAttribute || attr
-          if obj.many and value != true
-            multipleValues = _.compact(value.split(","))
+          if obj.many 
+            #FIXME: Does this work !!!!!
+            #multipleValues = _.compact(value.split(","))
+            multipleValues = value
             multi.sadd self.className + ":" +  props.id + "#" + attr + ':' + obj.referenceModelName + 'Refs', multipleValues...
             multipleValues.forEach (vid) ->
               multi.sadd obj.referenceModelName + ":" +  vid + "#" + namespace + ':' +  self.className + 'Refs', props.id
@@ -160,20 +168,20 @@ writeAttributes = (props) ->
             reject new Error "Unrecognised dataType " + obj.dataType
     new Promise (resolve) ->
       multi.exec ->
-        resolve Promise.all(indexingPromises)
-  indexPromise.then ->
-    return props 
+        Promise.all(indexingPromises).then ->
+          resolve(storedProps)
+  return indexPromise
 
 performValidations = (dataFields) ->
   if _.isEmpty(dataFields)
-    throw new Error "No valid fields given"
+    return Promise.reject(new Error "No valid fields given")
   returnedValidations = _.map @classAttributes, (attrObj, attrName) =>
     if attrObj.validates
       attrValue = dataFields[attrName]
       return oomph.validate.apply(this, [attrObj.validates, attrName, attrValue])
   Promise.all(returnedValidations).then (validationArray) ->
     errors =  _(validationArray).flattenDeep().compact().value()
-    throw errors if not _.isEmpty(errors)
+    return Promise.reject(errors) if not _.isEmpty(errors)
     return true
 
 sendAttributesForSaving = (dataFields, skipValidation) ->
@@ -187,12 +195,7 @@ sendAttributesForSaving = (dataFields, skipValidation) ->
     sanitisedDataFields = _(dataFields).omit(_.isNull).omit(_.isUndefined).pick(attrs).value()
     props = sanitisedDataFields
     validationPromise = performValidations.apply(this, [props])
-  throw new Error "Properties are empty" if _.isEmpty props
   validationPromise.then =>
     writeAttributes.apply(this, [props])
-  , (validationErrors) ->
-    validationErrors.forEach (error) ->
-      console.log error
-      throw error
 
 module.exports = sendAttributesForSaving

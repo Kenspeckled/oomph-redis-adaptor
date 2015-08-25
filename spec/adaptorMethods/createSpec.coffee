@@ -1,5 +1,6 @@
 create = require '../../src/adaptorMethods/create'
 Promise = require 'promise'
+ValidationError = require 'oomph/lib/ValidationError'
 _ = require 'lodash'
 redis = require 'redis'
 
@@ -7,14 +8,15 @@ describe 'oomphRedisAdaptor#create', ->
 
   beforeAll (done) ->
     @redis = redis.createClient(1111, 'localhost')
-    parentObject = 
+    done()
+
+  beforeEach ->
+    @parentObject = 
       className: 'TestCreateClass'
       redis: @redis 
       classAttributes: 
         name:
           dataType: 'string'
-          validates:
-            presence: true
         url:
           dataType: 'string'
           url: true
@@ -30,7 +32,6 @@ describe 'oomphRedisAdaptor#create', ->
           sortable: true
         integer:
           dataType: 'integer'
-          sortable: true
         identifier:
           dataType: 'string'
           identifiable: true
@@ -55,8 +56,15 @@ describe 'oomphRedisAdaptor#create', ->
           searchable: true
         boolean:
           dataType: 'boolean'
-    @create = create.bind(parentObject)
-    done()
+    @create = create.bind(@parentObject)
+    referenceModelparentObject = 
+      className: 'Reference'
+      redis: @redis 
+      classAttributes: 
+        secondId:
+          dataType: 'string'
+          identifiable: true
+    @referenceModelCreate = create.bind(referenceModelparentObject)
 
   afterEach (done) ->
     @redis.flushdb()
@@ -79,12 +87,15 @@ describe 'oomphRedisAdaptor#create', ->
           multi = @redis.multi()
           spyOn(@redis, 'multi').and.returnValue(multi)
           spyOn(multi, 'set')
-          @create(identifier: 'identifierValue').then (createdObject) ->
+          @create(identifier: 'identifierValue').done (createdObject) ->
             expect(multi.set).toHaveBeenCalledWith('TestCreateClass#identifier:identifierValue', createdObject.id)
+            done()
+          , (error) ->
+            console.log error
             done()
 
       describe 'where url is true', ->
-        it 'sores the generated url string in the object hash ', (done) ->
+        it 'stores the generated url string in the object hash ', (done) ->
           @create(name: "Héllo & gøød nîght").then (createdObject) ->
             expect(createdObject.url).toEqual 'hello-and-good-night' 
             done()
@@ -149,12 +160,9 @@ describe 'oomphRedisAdaptor#create', ->
         testPromise3 = @create( integer: 10 )
         testPromise4 = @create( integer: 9 )
         Promise.all([testPromise1,testPromise2,testPromise3,testPromise4]).done (testObjectArray) =>
-          test1Id = testObjectArray[0].id
-          test2Id = testObjectArray[1].id
-          test3Id = testObjectArray[2].id
-          test4Id = testObjectArray[3].id
+          [test1, test2, test3, test4] = testObjectArray
           @redis.zrange "TestCreateClass>integer", 0, -1, (error, list) ->
-            expect(list).toEqual [test2Id, test4Id, test3Id, test1Id]
+            expect(list).toEqual [test2.id, test4.id, test3.id, test1.id]
             done()
 
       it 'adds to a sorted set with values', (done) ->
@@ -180,25 +188,27 @@ describe 'oomphRedisAdaptor#create', ->
       describe 'when many is true', ->
 
         it "sets the reference to true", (done) ->
-          @referenceModel.create(secondId: 'id1').then (ref1) =>
-            @create(manyReferences: [ref1.id]).then (createdObject) =>
-              @redis.hgetall 'TestCreateClass:' + createdObject.id, (err, obj) ->
-                expect(obj.manyReferences).toEqual 'true'
-                done()
+          createReference = @referenceModelCreate(secondId: 'id1')
+          createTestObj = createReference.then (ref1) => @create(manyReferences: [ref1.id])
+          createTestObj.then (createdObject) =>
+            @redis.hgetall 'TestCreateClass:' + createdObject.id, (err, obj) ->
+              expect(obj.manyReferences).toEqual 'true'
+              done()
 
         it "sets the reference to even when empty", (done) ->
-          @referenceModel.create(secondId: 'id1').then (ref1) =>
+          @referenceModelCreate(secondId: 'id1').then (ref1) =>
             @create(url: 'one').then (createdObject) =>
               @redis.hgetall 'TestCreateClass:' + createdObject.id, (err, obj) ->
                 expect(obj.manyReferences).toEqual 'true'
                 done()
 
         it 'adds to a set', (done) ->
-          @attributes =
+          @parentObject.classAttributes =
             linkedModel:
               dataType: 'reference'
               many: true
               referenceModelName: 'LinkedModel'
+          @create = create.bind(@parentObject)
           multi = @redis.multi()
           spyOn(@redis, 'multi').and.returnValue(multi)
           spyOn(multi, 'sadd')
@@ -209,7 +219,7 @@ describe 'oomphRedisAdaptor#create', ->
             done()
 
         it 'adds to a set with a reverseReferenceAttribute', (done) ->
-          @attributes =
+          @parentObject.classAttributes =
             linkedModel:
               dataType: 'reference'
               many: true
@@ -218,6 +228,7 @@ describe 'oomphRedisAdaptor#create', ->
           multi = @redis.multi()
           spyOn(@redis, 'multi').and.returnValue(multi)
           spyOn(multi, 'sadd')
+          @create = create.bind(@parentObject)
           @create(linkedModel: ['linkedModelId1', 'linkedModelId2']).then (createdObject) ->
             expect(multi.sadd).toHaveBeenCalledWith('TestCreateClass:' + createdObject.id + '#linkedModel:LinkedModelRefs', 'linkedModelId1', 'linkedModelId2')
             expect(multi.sadd).toHaveBeenCalledWith('LinkedModel:linkedModelId1#namespaced:TestCreateClassRefs', createdObject.id)
@@ -226,56 +237,53 @@ describe 'oomphRedisAdaptor#create', ->
 
       describe 'when many is not true', ->
         it 'stores the reference id', (done) ->
-          @referenceModel.create(secondId: 'id1').done (ref1) =>
+          @referenceModelCreate(secondId: 'id1').done (ref1) =>
             @create(reference: ref1.id).then (createdObject) =>
               @redis.hgetall 'TestCreateClass:' + createdObject.id, (err, obj) ->
                 expect(obj.reference).toEqual ref1.id 
                 done()
 
   it 'should return a promise', ->
-    testProps = { url: 'uniqueValue'}
-    testObject = @create testProps
-    expect(testObject).toEqual jasmine.any(Promise)
+    testObjectPromise = @create(url: 'uniqueValue')
+    expect(testObjectPromise).toEqual jasmine.any(Promise)
 
   it 'should resolve an object with a 10 character id', (done) ->
     # This test will fail from Sun May 25 2059 18:38:27 BST (2821109907456 unix time)
     # and the number of characters will increase by 1
-    testProps =  url: 'uniqueValue'
-    testObjectPromise = @create testProps
+    testObjectPromise = @create(url: 'uniqueValue')
     testObjectPromise.done (testObject) ->
       expect(testObject.id.length).toEqual 10
       done()
 
   it "should create an object with properties that are defined in the class' attributes", (done) ->
-    testProps = boolean: false
-    testObjectPromise = @create testProps
+    testObjectPromise = @create(boolean: false)
     testObjectPromise.then (testObject) ->
       expect(testObject.boolean).toBe false
       done()
 
   it "should create an object and ignore properties that are not defined in the class' attributes", (done) ->
-    testProps = notAnAttribute: 'value'
-    @create(testProps).catch (error) =>
+    @create(notAnAttribute: 'value').catch (error) =>
       expect(error).toEqual(new Error "No valid fields given")
       done()
 
-
   describe 'presence validation', ->
     it 'should create objects that pass validation', (done) ->
-      @attributes.presenceValidation =
+      @parentObject.classAttributes.presenceValidation =
         dataType: 'string'
         validates:
           presence: true
+      @create = create.bind(@parentObject)
       @create(presenceValidation: 'value').then (testObject) =>
         expect(testObject.presenceValidation).toEqual 'value'
         done()
 
     it 'should not create objects that fail validation', (done) ->
-      @attributes.presenceValidation =
+      @parentObject.classAttributes.presenceValidation =
         dataType: 'string'
         identifiable: true
         validates:
           presence: true
+      @create = create.bind(@parentObject)
       @create(one: 1, presenceValidation: null).catch (errors) ->
         expect(errors).toContain(new Error 'presenceValidation must be present')
         done()
@@ -283,11 +291,12 @@ describe 'oomphRedisAdaptor#create', ->
   describe 'length validation', ->
 
     it 'should not create objects that fail length validation by having a length that is greater than', (done) ->
-      @attributes.lengthValidation =
+      @parentObject.classAttributes.lengthValidation =
         dataType: 'string'
         validates:
           length:
             is: 9
+      @create = create.bind(@parentObject)
       @create(one: 1, lengthValidation: 'elevenchars').catch (errors) ->
         expect(errors.length).toEqual 1
         expect(errors).toContain jasmine.any ValidationError
@@ -295,11 +304,12 @@ describe 'oomphRedisAdaptor#create', ->
         done()
 
     it 'should not create objects that fail length validation by having a length that is less than', (done) ->
-      @attributes.lengthValidation =
+      @parentObject.classAttributes.lengthValidation =
         dataType: 'string'
         validates:
           length:
             is: 9
+      @create = create.bind(@parentObject)
       @create(lengthValidation: 'sixchr').catch (errors) ->
         expect(errors.length).toEqual 1
         expect(errors).toContain jasmine.any ValidationError
@@ -307,21 +317,23 @@ describe 'oomphRedisAdaptor#create', ->
         done()
 
     it 'should create objects that have a length that is equal to the length validation', (done) ->
-      @attributes.lengthValidation =
+      @parentObject.classAttributes.lengthValidation =
         dataType: 'string'
         validates:
           length:
             is: 9
+      @create = create.bind(@parentObject)
       @create(lengthValidation: 'ninechars').then (testObject) ->
         expect(testObject.lengthValidation).toEqual 'ninechars'
         done()
 
     it 'should perform the validation only when the property is present', (done) ->
-      @attributes.lengthValidation =
+      @parentObject.classAttributes.lengthValidation =
         dataType: 'string'
         validates:
           length:
             is: 9
+      @create = create.bind(@parentObject)
       @create(one: 1, lengthValidation: null).then (testObject) =>
         expect(testObject.lengthValidation).toEqual undefined
         done()
@@ -329,62 +341,68 @@ describe 'oomphRedisAdaptor#create', ->
 
     describe 'minimum length', ->
       it 'should create objects that have a length that is equal to the minimum length validation', (done) ->
-        @attributes.minLengthValidation =
+        @parentObject.classAttributes.minLengthValidation =
           dataType: 'string'
           validates:
             length:
               minimum: 9
+        @create = create.bind(@parentObject)
         @create(minLengthValidation: 'ninechars').then (testObject) =>
           expect(testObject.minLengthValidation).toEqual 'ninechars'
           done()
 
       it 'should create objects that have a length that is greater than the minimum length validation', (done) ->
-        @attributes.minLengthValidation =
+        @parentObject.classAttributes.minLengthValidation =
           dataType: 'string'
           validates:
             length:
               minimum: 9
+        @create = create.bind(@parentObject)
         @create(minLengthValidation: 'elevenchars').then (testObject) =>
           expect(testObject.minLengthValidation).toEqual 'elevenchars'
           done()
 
       it 'should not create objects that fail minLength validation', (done) ->
-        @attributes.minLengthValidation =
+        @parentObject.classAttributes.minLengthValidation =
           dataType: 'string'
           validates:
             length:
               minimum: 9
+        @create = create.bind(@parentObject)
         @create(minLengthValidation: 'sixchr').catch (error) =>
           expect(error).toContain(new Error 'minLengthValidation should have a minimum length of 9')
           done()
 
     describe 'maximum length', ->
       it 'should create objects that have a length that is equal to the maximum length validation', (done) ->
-        @attributes.maxLengthValidation =
+        @parentObject.classAttributes.maxLengthValidation =
           dataType: 'string'
           validates:
             length:
               maximum: 9
+        @create = create.bind(@parentObject)
         @create(maxLengthValidation: 'ninechars').then (testObject) =>
           expect(testObject.maxLengthValidation).toEqual 'ninechars'
           done()
 
       it 'should create objects that have a length that is less than the maximum length validation', (done) ->
-        @attributes.maxLengthValidation =
+        @parentObject.classAttributes.maxLengthValidation =
           dataType: 'string'
           validates:
             length:
               maximum: 9
+        @create = create.bind(@parentObject)
         @create(maxLengthValidation: 'sixchr').then (testObject) =>
           expect(testObject.maxLengthValidation).toEqual 'sixchr'
           done()
 
       it 'should not create objects that fail validation', (done) ->
-        @attributes.maxLengthValidation =
+        @parentObject.classAttributes.maxLengthValidation =
           dataType: 'string'
           validates:
             length:
               maximum: 9
+        @create = create.bind(@parentObject)
         @create(maxLengthValidation: 'elevenchars').catch (error) =>
           expect(error).toContain(new Error 'maxLengthValidation should have a maximum length of 9')
           done()
@@ -392,140 +410,155 @@ describe 'oomphRedisAdaptor#create', ->
 
   describe 'greaterThan validation', ->
     it 'should create objects that pass greaterThan validation', (done) ->
-      @attributes.greaterThanValidation =
+      @parentObject.classAttributes.greaterThanValidation =
         dataType: 'integer'
         validates:
           greaterThan: 9
+      @create = create.bind(@parentObject)
       @create(greaterThanValidation: 11).then (testObject) =>
         expect(testObject.greaterThanValidation).toEqual 11
         done()
 
     it 'should not create objects that fail greaterThan validation by being less than', (done) ->
-      @attributes.greaterThanValidation =
+      @parentObject.classAttributes.greaterThanValidation =
         dataType: 'integer'
         validates:
           greaterThan: 9
+      @create = create.bind(@parentObject)
       @create(greaterThanValidation: 1).catch (error) =>
         expect(error).toContain(new Error 'greaterThanValidation should be greater than 9')
         done()
 
     it 'should not create objects that fail greaterThan validation by being equal to', (done) ->
-      @attributes.greaterThanValidation =
+      @parentObject.classAttributes.greaterThanValidation =
         dataType: 'integer'
         validates:
           greaterThan: 10
+      @create = create.bind(@parentObject)
       @create(greaterThanValidation: 10).catch (error) =>
         expect(error).toContain(new Error 'greaterThanValidation should be greater than 10')
         done()
 
   describe 'greaterThanOrEqualTo validation', ->
     it 'should create objects that pass greaterThanOrEqualTo validation by being equal to', (done) ->
-      @attributes.greaterThanOrEqualToValidation =
+      @parentObject.classAttributes.greaterThanOrEqualToValidation =
         dataType: 'integer'
         validates:
           greaterThanOrEqualTo: 10
+      @create = create.bind(@parentObject)
       @create(greaterThanOrEqualToValidation: 10).then (testObject) =>
         expect(testObject.greaterThanOrEqualToValidation).toEqual 10
         done()
 
     it 'should create objects that pass greaterThanOrEqualTo validation by being greater than', (done) ->
-      @attributes.greaterThanOrEqualToValidation =
+      @parentObject.classAttributes.greaterThanOrEqualToValidation =
         dataType: 'integer'
         validates:
           greaterThanOrEqualTo: 10
+      @create = create.bind(@parentObject)
       @create(greaterThanOrEqualToValidation: 11).then (testObject) =>
         expect(testObject.greaterThanOrEqualToValidation).toEqual 11
         done()
 
     it 'should not create objects that fail greaterThanOrEqualTo validation', (done) ->
-      @attributes.greaterThanOrEqualToValidation =
+      @parentObject.classAttributes.greaterThanOrEqualToValidation =
         dataType: 'integer'
         validates:
           greaterThanOrEqualTo: 10
+      @create = create.bind(@parentObject)
       @create(greaterThanOrEqualToValidation: 1).catch (error) =>
         expect(error).toContain(new Error 'greaterThanOrEqualToValidation should be greater than or equal to 10')
         done()
 
   describe 'lessThan validation', ->
     it 'should create objects that pass lessThan validation', (done) ->
-      @attributes.lessThanValidation =
+      @parentObject.classAttributes.lessThanValidation =
         dataType: 'integer'
         validates:
           lessThan: 10
+      @create = create.bind(@parentObject)
       @create(lessThanValidation: 9).then (testObject) =>
         expect(testObject.lessThanValidation).toEqual 9
         done()
 
     it 'should not create objects that fail lessThan validation by being more than', (done) ->
-      @attributes.lessThanValidation =
+      @parentObject.classAttributes.lessThanValidation =
         dataType: 'integer'
         validates:
           lessThan: 10
+      @create = create.bind(@parentObject)
       @create(lessThanValidation: 11).catch (error) =>
         expect(error).toContain(new Error 'lessThanValidation should be less than 10')
         done()
 
     it 'should not create objects that fail lessThan validation by being equal to', (done) ->
-      @attributes.lessThanValidation =
+      @parentObject.classAttributes.lessThanValidation =
         dataType: 'integer'
         validates:
           lessThan: 10
+      @create = create.bind(@parentObject)
       @create(lessThanValidation: 10).catch (error) =>
         expect(error).toContain(new Error 'lessThanValidation should be less than 10')
         done()
 
   describe 'lessThanOrEqualTo validation', ->
     it 'should create objects that pass lessThanOrEqualTo validation by being less than', (done) ->
-      @attributes.lessThanOrEqualToValidation =
+      @parentObject.classAttributes.lessThanOrEqualToValidation =
         dataType: 'integer'
         validates:
           lessThanOrEqualTo: 10
+      @create = create.bind(@parentObject)
       @create(lessThanOrEqualToValidation: 9).then (testObject) =>
         expect(testObject.lessThanOrEqualToValidation).toEqual 9
         done()
 
     it 'should create objects that pass lessThanOrEqualTo validation by being equal to', (done) ->
-      @attributes.lessThanOrEqualToValidation =
+      @parentObject.classAttributes.lessThanOrEqualToValidation =
         dataType: 'integer'
         validates:
           lessThanOrEqualTo: 10
+      @create = create.bind(@parentObject)
       @create(lessThanOrEqualToValidation: 10).then (testObject) =>
         expect(testObject.lessThanOrEqualToValidation).toEqual 10
         done()
 
     it 'should not create objects that fail lessThanOrEqualTo validation', (done) ->
-      @attributes.lessThanOrEqualToValidation =
+      @parentObject.classAttributes.lessThanOrEqualToValidation =
         dataType: 'integer'
         validates:
           lessThanOrEqualTo: 10
+      @create = create.bind(@parentObject)
       @create(lessThanOrEqualToValidation: 11).catch (error) =>
         expect(error).toContain(new Error 'lessThanOrEqualToValidation should be less than or equal to 10')
         done()
 
   describe 'equalTo validation', ->
     it 'should create objects that pass equalTo validation', (done) ->
-      @attributes.equalToValidation =
+      @parentObject.classAttributes.equalToValidation =
         dataType: 'integer'
         validates:
           equalTo: 10
+      @create = create.bind(@parentObject)
       @create(equalToValidation: 10).then (testObject) =>
         expect(testObject.equalToValidation).toEqual 10
         done()
 
     it 'should not create objects that fail equalTo validation by being more than', (done) ->
-      @attributes.equalToValidation =
+      @parentObject.classAttributes.equalToValidation =
         dataType: 'integer'
         validates:
           equalTo: 10
+      @create = create.bind(@parentObject)
       @create(equalToValidation: 11).catch (error) =>
         expect(error).toContain(new Error 'equalToValidation should equal 10')
         done()
 
     it 'should not create objects that fail equalTo validation by being less than', (done) ->
-      @attributes.equalToValidation =
+      @parentObject.classAttributes.equalToValidation =
         dataType: 'integer'
         validates:
           equalTo: 10
+      @create = create.bind(@parentObject)
       @create(equalToValidation: 9).catch (error) =>
         expect(error).toContain(new Error 'equalToValidation should equal 10')
         done()
@@ -536,112 +569,125 @@ describe 'oomphRedisAdaptor#create', ->
         pending()
 
       it "should create objects that pass format validation 'with' a regular expression that accounts for all of the data", (done) ->
-        @attributes.formatValidation =
+        @parentObject.classAttributes.formatValidation =
           dataType: 'string'
           validates:
             format:
               with: /[a-zA-Z]+/
+        @create = create.bind(@parentObject)
         @create(formatValidation: 'abcd').then (testObject) =>
           expect(testObject.formatValidation).toEqual 'abcd'
           done()
 
       it "should create objects that pass format validation 'with' a regular expression that only accounts for some of the data", (done) ->
-        @attributes.formatValidation =
+        @parentObject.classAttributes.formatValidation =
           dataType: 'string'
           validates:
             format:
               with: /[a-zA-Z]+/
+        @create = create.bind(@parentObject)
         @create(formatValidation: 'ab123cd').then (testObject) =>
           expect(testObject.formatValidation).toEqual 'ab123cd'
           done()
 
       it "should not create objects that fail format validation 'with' a regular expression", (done) ->
-        @attributes.formatValidation =
+        @parentObject.classAttributes.formatValidation =
           dataType: 'string'
           validates:
             format:
               with: /[a-zA-Z]+/
+        @create = create.bind(@parentObject)
         @create(formatValidation: '123').catch (error) =>
           expect(error).toContain(new Error 'formatValidation should meet the format requirements')
           done()
 
       it 'should perform the validation only when the property is present', (done) ->
-        @attributes.formatValidation =
+        @parentObject.classAttributes.formatValidation =
           dataType: 'string'
           validates:
             format:
               with: /[a-zA-Z]+/
+        @create = create.bind(@parentObject)
         @create(one: 1, formatValidation: null).then (testObject) =>
           expect(testObject.formatValidation).toEqual undefined
           done()
 
     describe "'without'", ->
       it "should not create objects that fail validation", (done) ->
-        @attributes.formatValidation =
+        @parentObject.classAttributes.formatValidation =
           dataType: 'string'
           validates:
             format:
               without: /[a-zA-Z]+/
+        @create = create.bind(@parentObject)
         @create(formatValidation: 'abcd').catch (error) ->
           expect(error).toContain(new Error 'formatValidation should meet the format requirements')
           done()
 
       it "should create objects that pass format validation", (done) ->
-        @attributes.formatValidation =
+        @parentObject.classAttributes.formatValidation =
           dataType: 'string'
           validates:
             format:
               without: /[a-zA-Z]+/
+        @create = create.bind(@parentObject)
         @create(formatValidation: '123').then (testObject) =>
           expect(testObject.formatValidation).toEqual '123'
           done()
 
   describe 'inclusionIn validation', ->
     it 'should create objects that pass inclusionIn validation', (done) ->
-      @attributes.inclusionInValidation =
+      @parentObject.classAttributes.inclusionInValidation =
         dataType: 'string'
         validates:
           inclusionIn: ['one', 'two', 'three']
+      @create = create.bind(@parentObject)
       @create(inclusionInValidation: 'one').then (testObject) =>
         expect(testObject.inclusionInValidation).toEqual 'one'
         done()
 
     it 'should not create objects that fail inclusionIn validation', (done) ->
-      @attributes.inclusionInValidation =
+      @parentObject.classAttributes.inclusionInValidation =
         dataType: 'string'
         validates:
           inclusionIn: ['one', 'two', 'three']
+      @create = create.bind(@parentObject)
       @create(inclusionInValidation: 'four').catch (error) =>
         expect(error).toContain(new Error 'inclusionInValidation must be one of the accepted values')
         done()
 
   describe 'exclusionIn validation', ->
     it 'should create objects that pass exclusionIn validation', (done) ->
-      @attributes.exclusionInValidation =
+      @parentObject.classAttributes.exclusionInValidation =
         dataType: 'string'
         validates:
           exclusionIn: ['one', 'two', 'three']
+      @create = create.bind(@parentObject)
       @create(exclusionInValidation: 'four').then (testObject) =>
         expect(testObject.exclusionInValidation).toEqual 'four'
         done()
 
     it 'should not create objects that fail exclusionIn validation', (done) ->
-      @attributes.exclusionInValidation =
+      @parentObject.classAttributes.exclusionInValidation =
         dataType: 'string'
         validates:
           exclusionIn: ['one', 'two', 'three']
+      @create = create.bind(@parentObject)
       @create(exclusionInValidation: 'one').catch (error) =>
         expect(error).toContain(new Error 'exclusionInValidation must not be one of the forbidden values')
         done()
 
   describe 'uniqueness validation', ->
     it 'should not create objects that fail validation', (done) ->
-      @attributes.uniquenessValidation =
-        dataType: 'string'
-        identifiable: true
-        validates:
-          uniqueness: true
-      @redis.set 'TestCreateClass#uniquenessValidation:notUnique', 'test', () =>
+      pending()
+      @parentObject.classAttributes =
+        uniquenessValidation:
+          dataType: 'string'
+          identifiable: true
+          validates:
+            uniqueness: true
+      @create = create.bind(@parentObject)
+      @redis.set 'TestCreateClass#uniquenessValidation:notUnique', 'test', =>
         @create(uniquenessValidation: 'notUnique').catch (errors) =>
           expect(errors).toContain(new Error 'uniquenessValidation should be a unique value')
           done()
