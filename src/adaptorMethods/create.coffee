@@ -3,10 +3,12 @@ sendAttributesForSaving = require './_redisObjectSave'
 redisFind = require './find'
 
 create = (props, skipValidation) ->
-  sendAttributesForSaving.apply(this, [props, skipValidation]).then (writtenObject) ->
+  self = this
+  sendAttributesForSaving.apply(self, [props, skipValidation]).then (writtenObject) ->
     throw new Error 'Write error' if !writtenObject
-    return redisFind.apply(this, [writtenObject.id]) 
+    redisFind.apply(self, [writtenObject.id])
   , (error) ->
+    console.log "ERROR", error
     return error
 
 module.exports = create

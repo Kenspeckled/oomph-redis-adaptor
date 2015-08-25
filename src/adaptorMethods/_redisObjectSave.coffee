@@ -17,12 +17,13 @@ generateUniqueId = ->
   newIdPromise = _utilities.promiseWhile condition, ->
     new Promise (resolve) ->
       id = generateId()
-      self.redis.lrange self.className + '#uniqueQueuedIds', 0, -1, (error, idsArray) ->
+      # FIXME: ids become guaranteed to be unique after 1 second since they are time based. This can be done better
+      self.redis.lrange self.className + '#uniqueIds', 0, -1, (error, idsArray) ->
         if _.includes(idsArray, id)
           id = generateId()
           resolve()
         else
-          self.redis.rpush self.className + '#uniqueQueuedIds', id, (error, response) ->
+          self.redis.rpush self.className + '#uniqueIds', id, (error, response) ->
             uniqueId = true
             resolve(id)
 
@@ -76,27 +77,43 @@ writeAttributes = (props) ->
   writePromise = idPromise.then (id) ->
     props.id = id
     storableProps = _.clone props
-    new Promise (resolve) ->
-      for attr, obj of self.classAttributes
-        switch obj.dataType
-          when 'integer'
-            if storableProps[attr]
-              storableProps[attr + '[i]'] = storableProps[attr]
-              delete storableProps[attr]
-          when 'boolean'
-            if storableProps[attr]
-              storableProps[attr + '[b]'] = storableProps[attr]
-              delete storableProps[attr]
-          when 'reference'
-            if obj.many
-              delete storableProps[attr]
-              storableProps[attr] = true if newObjectFlag
-          when 'string'
-            if obj.url and obj.urlBaseAttribute
-              # FIXME: Handle duplicate urls and force them to be unique by appending sequential numbers
-              storableProps[attr] = _utilities.urlString(props[obj.urlBaseAttribute]) if !storableProps[attr] # only define url if not manually defined
-      self.redis.hmset self.className + ":" + props.id, storableProps, (err, res) ->
-        resolve(storableProps)
+    writeCallbackPromises = []
+    for attr, obj of self.classAttributes
+      switch obj.dataType
+        when 'integer'
+          if storableProps[attr]
+            storableProps[attr + '[i]'] = storableProps[attr]
+            delete storableProps[attr]
+        when 'boolean'
+          if storableProps[attr]
+            storableProps[attr + '[b]'] = storableProps[attr]
+            delete storableProps[attr]
+        when 'reference'
+          if obj.many
+            delete storableProps[attr]
+            storableProps[attr] = true if newObjectFlag
+        when 'string'
+          if obj.url and obj.urlBaseAttribute
+            # FIXME: Handle duplicate urls and force them to be unique by appending sequential numbers
+            findExistingAttr = (attr, identifier, baseAttr) ->
+              isUnique = false
+              condition = -> !isUnique
+              counter = 0
+              _utilities.promiseWhile condition, ->
+                modifiedIdentifier = identifier 
+                modifiedIdentifier += ('-' + counter) if counter > 0
+                counter += 1
+                new Promise (resolve) ->
+                  self.redis.get self.className + "#" + attr + ':' + modifiedIdentifier, (err, res) ->
+                    isUnique = !res
+                    storableProps[attr] = modifiedIdentifier
+                    resolve()
+            identifier = _utilities.urlString(props[obj.urlBaseAttribute]) if !storableProps[attr] # only define url if not manually defined
+            writeCallbackPromises.push findExistingAttr(attr, identifier, obj.urlBaseAttribute)
+    Promise.all(writeCallbackPromises).then ->
+      new Promise (resolve) ->
+        self.redis.hmset self.className + ":" + props.id, storableProps, (err, res) ->
+          resolve(storableProps)
   indexPromise = writePromise.then (props) ->
     indexingPromises = []
     multi = self.redis.multi()
@@ -131,7 +148,7 @@ writeAttributes = (props) ->
             multi.zadd self.className + "#" + attr + ":" + value, 1, props.id #set
         when 'reference'
           namespace = obj.reverseReferenceAttribute || attr
-          if obj.many
+          if obj.many and value != true
             multipleValues = _.compact(value.split(","))
             multi.sadd self.className + ":" +  props.id + "#" + attr + ':' + obj.referenceModelName + 'Refs', multipleValues...
             multipleValues.forEach (vid) ->
@@ -147,52 +164,6 @@ writeAttributes = (props) ->
   indexPromise.then ->
     return props 
 
-processWriteQueue = ->
-  console.log "processing write queue"
-  self = this
-  hasQueue = true
-  condition = -> hasQueue
-  writeReturnObject = {}
-  processPromise = _utilities.promiseWhile condition, ->
-    console.log "loop"
-    new Promise (resolve, reject) ->
-      self.redis.rpop self.className + "#TmpQueue", (error, tmpId) ->
-        if tmpId
-          self.redis.hgetall self.className + "#TmpQueueObj:" + tmpId, (err, props) ->
-            self.redis.del self.className + "#TmpQueueObj:" + tmpId
-            if props
-              writeAttributes.apply(self, [props]).then (writtenObject) ->
-                writeReturnObject[tmpId] = writtenObject
-                resolve()
-            else
-              reject new Error "No properties in Queued Object " + self.className + "#TmpQueueObj:" + tmpId
-        else
-          #clear uniqueQueuedIds
-          self.redis.del self.className + '#uniqueQueuedIds'
-          hasQueue = false
-          resolve(writeReturnObject)
-  processPromise.then ->
-    _.each writeReturnObject, (obj, tmpId) ->
-      console.log "process", obj, tmpId
-      oomph.publishSubscribe.broadcast.apply(self, ['attributes_written_' + tmpId, obj])
-    return writeObjectArray
-
-
-addToWriteQueue = (props) ->
-  self = this
-  tmpId = "TmpId" + generateId() + _utilities.randomString(12)
-  p = new Promise (resolve) ->
-    self.redis.hmset self.className + "#TmpQueueObj:" + tmpId, props, (err, res) =>
-      self.redis.lpush self.className + "#TmpQueue", tmpId, (error, newListLength) =>
-        resolve(tmpId)
-  p.then (tmpId) ->
-    processWriteQueue.apply(self)
-    new Promise (resolve) ->
-      resolveFn = (obj) -> 
-        oomph.publishSubscribe.removeAllListenersOn.apply(self, ["attributes_written_" + tmpId])
-        resolve(obj)
-      oomph.publishSubscribe.listen.apply(self, ['attributes_written_' + tmpId, resolveFn])
-
 performValidations = (dataFields) ->
   if _.isEmpty(dataFields)
     throw new Error "No valid fields given"
@@ -203,6 +174,7 @@ performValidations = (dataFields) ->
   Promise.all(returnedValidations).then (validationArray) ->
     errors =  _(validationArray).flattenDeep().compact().value()
     throw errors if not _.isEmpty(errors)
+    return true
 
 sendAttributesForSaving = (dataFields, skipValidation) ->
   if skipValidation
@@ -217,8 +189,10 @@ sendAttributesForSaving = (dataFields, skipValidation) ->
     validationPromise = performValidations.apply(this, [props])
   throw new Error "Properties are empty" if _.isEmpty props
   validationPromise.then =>
-    addToWriteQueue.apply(this, [props])
+    writeAttributes.apply(this, [props])
   , (validationErrors) ->
-    throw validationErrors
+    validationErrors.forEach (error) ->
+      console.log error
+      throw error
 
 module.exports = sendAttributesForSaving

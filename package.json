@@ -25,7 +25,7 @@
   "homepage": "https://github.com/Kenspeckled/oomph-redis-adaptor",
   "dependencies": {
     "lodash": "~3.5.0",
-    "oomph": "0.0.0",
+    "oomph": "git://github.com/Kenspeckled/oomph",
     "promise": "^7.0.3",
     "redis": "^0.12.1"
   }
