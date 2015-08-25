@@ -76,8 +76,7 @@ where = (args) ->
   whereConditionPromises = []
   for option in Object.keys(args)
     optionValue = args[option]
-    if !self.classAttributes[option]
-      continue
+    continue if !self.classAttributes[option]
     switch self.classAttributes[option].dataType
       when 'integer' #add less than and greater than functionality
         tempIntegerKey = 'temporaryIntegerSet:' + _utilities.randomString(5)

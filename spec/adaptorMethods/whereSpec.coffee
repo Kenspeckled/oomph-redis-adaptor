@@ -1,48 +1,117 @@
 where = require '../../src/adaptorMethods/where'
+create = require '../../src/adaptorMethods/create'
+find = require '../../src/adaptorMethods/find'
 Promise = require 'promise'
 _ = require 'lodash'
+redis = require 'redis'
 
 describe 'oomphRedisAdaptor#where', ->
 
-  beforeAll ->
-    parentObject = 
-      classAttributes: {}
-    @where = where.bind(parentObject)
+  beforeAll (done) ->
+    @redis = redis.createClient(1111, 'localhost')
+    done()
 
+  beforeEach ->
+    @parentObject = 
+      className: 'TestWhereClass'
+      redis: @redis 
+      create: create
+      find: find
+      classAttributes: 
+        name:
+          dataType: 'string'
+        url:
+          dataType: 'string'
+          url: true
+          urlBaseAttribute: 'name'
+        one:
+          dataType: 'integer'
+          sortable: true
+        two:
+          dataType: 'integer'
+          sortable: true
+        three:
+          dataType: 'integer'
+          sortable: true
+        integer:
+          dataType: 'integer'
+        identifier:
+          dataType: 'string'
+          identifiable: true
+        reference:
+          dataType: 'reference'
+          referenceModelName: 'Reference'
+        manyReferences:
+          dataType: 'reference'
+          many: true
+          referenceModelName: 'Reference'
+        sortableString:
+          dataType: 'string'
+          sortable: true
+        sortableInteger:
+          dataType: 'integer'
+          sortable: true
+        searchableText:
+          dataType: 'text'
+          searchable: true
+        searchableString:
+          dataType: 'string'
+          searchable: true
+        boolean:
+          dataType: 'boolean'
+    @where = where.bind(@parentObject)
+    referenceModelparentObject = 
+      className: 'Reference'
+      redis: @redis 
+      classAttributes: 
+        secondId:
+          dataType: 'string'
+          identifiable: true
+    @referenceModelCreate = create.bind(referenceModelparentObject)
+
+  afterEach (done) ->
+    @redis.flushdb()
+    done()
+  
+  afterAll (done) ->
+    @redis.flushdb()
+    @redis.end()
+    done()
+  
   it 'should remove temporary sorted sets', (done) ->
-    testPromise1 = @redisObjectClassDataStore.create( url: 'uniqueValue1', integer: 1 )
-    testPromise2 = @redisObjectClassDataStore.create( url: 'uniqueValue2', integer: 1 )
-    testPromise3 = @redisObjectClassDataStore.create( url: 'uniqueValue3', integer: 2 )
+    testPromise1 = @parentObject.create( url: 'uniqueValue1', integer: 1 )
+    testPromise2 = @parentObject.create( url: 'uniqueValue2', integer: 1 )
+    testPromise3 = @parentObject.create( url: 'uniqueValue3', integer: 2 )
     Promise.all([testPromise1,testPromise2,testPromise3]).done =>
-      wherePromise = @redisObjectClassDataStore.where(integer: 1)
+      wherePromise = @where(integer: 1)
       wherePromise.done (returnValue) =>
         setTimeout =>
-          @redisObjectClassDataStore.redis.keys 'temporary*', (err, keys) ->
+          @redis.keys 'temporary*', (err, keys) ->
             expect(keys).toEqual []
             done()
         ,1100
 
   it 'should return a promise', ->
-    testObject = @redisObjectClassDataStore.where(one: '1')
+    testObject = @where(one: '1')
     expect(testObject).toEqual jasmine.any(Promise)
 
   it 'should be able to return multiple test objects', (done) ->
-    testPromise1 = @redisObjectClassDataStore.create( url: 'uniqueValue1', boolean: true )
-    testPromise2 = @redisObjectClassDataStore.create( url: 'uniqueValue2', boolean: true )
-    testPromise3 = @redisObjectClassDataStore.create( url: 'uniqueValue3', boolean: false )
+    testPromise1 = @parentObject.create( url: 'uniqueValue1', boolean: true )
+    testPromise2 = @parentObject.create( url: 'uniqueValue2', boolean: true )
+    testPromise3 = @parentObject.create( url: 'uniqueValue3', boolean: false )
     Promise.all([testPromise1,testPromise2,testPromise3]).done =>
-      wherePromise = @redisObjectClassDataStore.where(boolean: true)
+      wherePromise = @where(boolean: true)
       wherePromise.done (returnValue) =>
         expect(returnValue.total).toEqual 2
         expect(returnValue.items.length).toEqual 2
         done()
 
   it 'should be able to return a single test objects', (done) ->
-    testPromise1 = @redisObjectClassDataStore.create( url: 'uniqueValue1', one: 2 )
-    testPromise2 = @redisObjectClassDataStore.create( url: 'uniqueValue2', one: 1 )
-    testPromise3 = @redisObjectClassDataStore.create( url: 'uniqueValue3', one: 1 )
+    testPromise1 = @parentObject.create( url: 'uniqueValue1', one: 2 )
+    testPromise2 = @parentObject.create( url: 'uniqueValue2', one: 1 )
+    testPromise3 = @parentObject.create( url: 'uniqueValue3', one: 1 )
     Promise.all([testPromise1,testPromise2,testPromise3]).done =>
-      wherePromise = @redisObjectClassDataStore.where(one: equalTo: 2)
+      wherePromise = @where(one: equalTo: 2)
       wherePromise.done (returnValue) =>
         expect(returnValue.total).toEqual 1
         expect(returnValue.items.length).toEqual 1
@@ -50,16 +119,16 @@ describe 'oomphRedisAdaptor#where', ->
         done()
 
   it 'should return correct test objects when multiple properties conditions are met', (done) ->
-    testPromise1 = @redisObjectClassDataStore.create( url: 'uniqueValue1', one: 1, two: 1 )
-    testPromise2 = @redisObjectClassDataStore.create( url: 'uniqueValue2', one: 1, two: 2 )
-    testPromise3 = @redisObjectClassDataStore.create( url: 'uniqueValue3', one: 1, two: 2 )
+    testPromise1 = @parentObject.create( url: 'uniqueValue1', one: 1, two: 1 )
+    testPromise2 = @parentObject.create( url: 'uniqueValue2', one: 1, two: 2 )
+    testPromise3 = @parentObject.create( url: 'uniqueValue3', one: 1, two: 2 )
     Promise.all([testPromise1,testPromise2,testPromise3]).then =>
       whereConditions =
         one:
           equalTo: 1
         two:
           equalTo: 1
-      wherePromise = @redisObjectClassDataStore.where(whereConditions)
+      wherePromise = @where(whereConditions)
       wherePromise.done (returnValue) =>
         expect(returnValue.items.length).toEqual 1
         expect(returnValue.total).toEqual 1
@@ -67,9 +136,9 @@ describe 'oomphRedisAdaptor#where', ->
         done()
 
   it 'should return an empty array when nothing matches the conditions', (done) ->
-    testPromise1 = @redisObjectClassDataStore.create( url: 'uniqueValue1', one: 1, two: 2, three: 3 )
-    testPromise2 = @redisObjectClassDataStore.create( url: 'uniqueValue2', one: 1, two: 2, three: 3 )
-    testPromise3 = @redisObjectClassDataStore.create( url: 'uniqueValue3', one: 1, two: 2, three: 3 )
+    testPromise1 = @parentObject.create( url: 'uniqueValue1', one: 1, two: 2, three: 3 )
+    testPromise2 = @parentObject.create( url: 'uniqueValue2', one: 1, two: 2, three: 3 )
+    testPromise3 = @parentObject.create( url: 'uniqueValue3', one: 1, two: 2, three: 3 )
     Promise.all([testPromise1,testPromise2,testPromise3]).then =>
       whereConditions =
         one:
@@ -78,18 +147,18 @@ describe 'oomphRedisAdaptor#where', ->
           equalTo: 2
         three:
           equalTo: 4
-      wherePromise = @redisObjectClassDataStore.where(whereConditions)
+      wherePromise = @where(whereConditions)
       wherePromise.done (returnValue) =>
         expect(returnValue.total).toEqual 0
         expect(returnValue.items).toEqual []
         done()
 
   it "should resolve to an array of valid instances of the module's class", (done) ->
-    testPromise1 = @redisObjectClassDataStore.create( url: 'uniqueValue1', one: 1 )
-    testPromise2 = @redisObjectClassDataStore.create( url: 'uniqueValue2', one: 1 )
-    testPromise3 = @redisObjectClassDataStore.create( url: 'uniqueValue3', one: null )
+    testPromise1 = @parentObject.create( url: 'uniqueValue1', one: 1 )
+    testPromise2 = @parentObject.create( url: 'uniqueValue2', one: 1 )
+    testPromise3 = @parentObject.create( url: 'uniqueValue3', one: null )
     Promise.all([testPromise1,testPromise2,testPromise3]).then (createdObjectArray) =>
-      wherePromise = @redisObjectClassDataStore.where(one: 1)
+      wherePromise = @where(one: 1)
       wherePromise.done (returnValue) =>
         expect(returnValue.items).toContain createdObjectArray[0]
         expect(returnValue.items).toContain createdObjectArray[1]
@@ -100,10 +169,10 @@ describe 'oomphRedisAdaptor#where', ->
   it 'should return an array of objects sorted consistently (by id)', (done) ->
     integerArray = [1, 1, 1, 2, 2, 3, 4, 5, 5]
     promiseArray = _.map integerArray, (integer) =>
-      @redisObjectClassDataStore.create( integer: integer )
+      @parentObject.create( integer: integer )
     Promise.all(promiseArray).then (createdObjectArray) =>
-      @redisObjectClassDataStore.where(integer: equalTo: 1).done (firstResultArray) =>
-        @redisObjectClassDataStore.where(integer: equalTo: 1).done (secondResultArray) =>
+      @where(integer: equalTo: 1).done (firstResultArray) =>
+        @where(integer: equalTo: 1).done (secondResultArray) =>
           expect(secondResultArray).toEqual firstResultArray
           expect(secondResultArray.items.length).toEqual 3
           expect(secondResultArray.total).toEqual 3
@@ -113,13 +182,13 @@ describe 'oomphRedisAdaptor#where', ->
     createDelayedObj = (integer) ->
       new Promise (resolve) =>
         setTimeout =>
-          resolve @redisObjectClassDataStore.create(integer: integer)
+          resolve @parentObject.create(integer: integer)
         , 10
     delayedCreatePromises = []
     for i in [0..9]
       delayedCreatePromises.push createDelayedObj.apply(this, [i%2])
     Promise.all(delayedCreatePromises).then (createdObjectArray) =>
-      @redisObjectClassDataStore.where(integer: equalTo: 1).done (returnArray) ->
+      @where(integer: equalTo: 1).done (returnArray) ->
         returnedIds = if returnArray then _.map(returnArray.items.ids, (x) -> x.id ) else []
         sortedReturnedIds = returnedIds.sort (a,b) -> a > b
         expect(returnArray.items.length).toEqual 5
@@ -129,9 +198,9 @@ describe 'oomphRedisAdaptor#where', ->
   describe 'arguements', ->
     describe 'integers', ->
       beforeEach (done) ->
-        testPromise1 = @redisObjectClassDataStore.create( url: 'uniqueValue1', integer: 5 )
-        testPromise2 = @redisObjectClassDataStore.create( url: 'uniqueValue2', integer: 10 )
-        testPromise3 = @redisObjectClassDataStore.create( url: 'uniqueValue3', integer: 15 )
+        testPromise1 = @parentObject.create( url: 'uniqueValue1', integer: 5 )
+        testPromise2 = @parentObject.create( url: 'uniqueValue2', integer: 10 )
+        testPromise3 = @parentObject.create( url: 'uniqueValue3', integer: 15 )
         Promise.all([testPromise1,testPromise2,testPromise3]).then (testObjects) =>
           @testObject1 = testObjects[0]
           @testObject2 = testObjects[1]
@@ -142,7 +211,7 @@ describe 'oomphRedisAdaptor#where', ->
         whereConditions =
           integer:
             greaterThan: 10
-        wherePromise = @redisObjectClassDataStore.where(whereConditions)
+        wherePromise = @where(whereConditions)
         wherePromise.done (returnValue) =>
           expect(returnValue.items.length).toEqual 1
           expect(returnValue.total).toEqual 1
@@ -153,7 +222,7 @@ describe 'oomphRedisAdaptor#where', ->
         whereConditions =
           integer:
             greaterThanOrEqualTo: 10
-        wherePromise = @redisObjectClassDataStore.where(whereConditions)
+        wherePromise = @where(whereConditions)
         wherePromise.done (returnValue) =>
           expect(returnValue.total).toEqual 2
           expect(returnValue.items.length).toEqual 2
@@ -165,7 +234,7 @@ describe 'oomphRedisAdaptor#where', ->
         whereConditions =
           integer:
             lessThan: 10
-        wherePromise = @redisObjectClassDataStore.where(whereConditions)
+        wherePromise = @where(whereConditions)
         wherePromise.done (returnValue) =>
           expect(returnValue.items.length).toEqual 1
           expect(returnValue.total).toEqual 1
@@ -176,7 +245,7 @@ describe 'oomphRedisAdaptor#where', ->
         whereConditions =
           integer:
             lessThanOrEqualTo: 10
-        wherePromise = @redisObjectClassDataStore.where(whereConditions)
+        wherePromise = @where(whereConditions)
         wherePromise.done (returnValue) =>
           expect(returnValue.items.length).toEqual 2
           expect(returnValue.total).toEqual 2
@@ -188,7 +257,7 @@ describe 'oomphRedisAdaptor#where', ->
         whereConditions =
           integer:
             equalTo: 10
-        wherePromise = @redisObjectClassDataStore.where(whereConditions)
+        wherePromise = @where(whereConditions)
         wherePromise.done (returnValue) =>
           expect(returnValue.items.length).toEqual 1
           expect(returnValue.total).toEqual 1
@@ -197,9 +266,9 @@ describe 'oomphRedisAdaptor#where', ->
 
     describe 'keywords', ->
       beforeEach (done) ->
-        testPromise1 = @redisObjectClassDataStore.create( url: 'uniqueValue1', searchableText: 'bananas apples throat', searchableString: 'tongue' )
-        testPromise2 = @redisObjectClassDataStore.create( url: 'uniqueValue2', searchableText: 'two one four', searchableString: 'neck apples' )
-        testPromise3 = @redisObjectClassDataStore.create( url: 'uniqueValue3', searchableText: 'One two Three throat', searchableString: 'throat two' )
+        testPromise1 = @parentObject.create( url: 'uniqueValue1', searchableText: 'bananas apples throat', searchableString: 'tongue' )
+        testPromise2 = @parentObject.create( url: 'uniqueValue2', searchableText: 'two one four', searchableString: 'neck apples' )
+        testPromise3 = @parentObject.create( url: 'uniqueValue3', searchableText: 'One two Three throat', searchableString: 'throat two' )
         Promise.all([testPromise1,testPromise2,testPromise3]).then (testObjects) =>
           @testObject1 = testObjects[0]
           @testObject2 = testObjects[1]
@@ -211,7 +280,7 @@ describe 'oomphRedisAdaptor#where', ->
           includes:
             keywords: 'one'
             in: 'searchableText'
-        wherePromise = @redisObjectClassDataStore.where(whereConditions)
+        wherePromise = @where(whereConditions)
         wherePromise.done (returnValue) =>
           expect(returnValue.items.length).toEqual 2
           expect(returnValue.total).toEqual 2
@@ -227,7 +296,7 @@ describe 'oomphRedisAdaptor#where', ->
           includes:
             keywords: 'thr'
             in: 'searchableText'
-        wherePromise = @redisObjectClassDataStore.where(whereConditions)
+        wherePromise = @where(whereConditions)
         wherePromise.done (returnValue) =>
           expect(returnValue.items.length).toEqual 2
           expect(returnValue.total).toEqual 2
@@ -240,7 +309,7 @@ describe 'oomphRedisAdaptor#where', ->
           includes:
             keywords: 'two one'
             in: 'searchableText'
-        wherePromise = @redisObjectClassDataStore.where(whereConditions)
+        wherePromise = @where(whereConditions)
         wherePromise.done (returnValue) =>
           expect(returnValue.items.length).toEqual 2
           expect(returnValue.total).toEqual 2
@@ -254,7 +323,7 @@ describe 'oomphRedisAdaptor#where', ->
             includes:
               keywords: 'throat'
               inAllOf: ['searchableText', 'searchableString']
-          wherePromise = @redisObjectClassDataStore.where(whereConditions)
+          wherePromise = @where(whereConditions)
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 1
             expect(returnValue.total).toEqual 1
@@ -266,7 +335,7 @@ describe 'oomphRedisAdaptor#where', ->
             includes:
               keywords: 'throat two'
               inAllOf: ['searchableText', 'searchableString']
-          wherePromise = @redisObjectClassDataStore.where(whereConditions)
+          wherePromise = @where(whereConditions)
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 1
             expect(returnValue.total).toEqual 1
@@ -278,7 +347,7 @@ describe 'oomphRedisAdaptor#where', ->
             includes:
               keywords: 'throat One'
               inAllOf: ['searchableText', 'searchableString']
-          wherePromise = @redisObjectClassDataStore.where(whereConditions)
+          wherePromise = @where(whereConditions)
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 0
             done()
@@ -289,7 +358,7 @@ describe 'oomphRedisAdaptor#where', ->
             includes:
               keywords: 'throat'
               inAnyOf: ['searchableText', 'searchableString']
-          wherePromise = @redisObjectClassDataStore.where(whereConditions)
+          wherePromise = @where(whereConditions)
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 2
             expect(returnValue.total).toEqual 2
@@ -306,7 +375,7 @@ describe 'oomphRedisAdaptor#where', ->
                 attributes: 'searchableText'
                 weight: 0.5
               ]
-          wherePromise = @redisObjectClassDataStore.where(whereConditions)
+          wherePromise = @where(whereConditions)
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 2
             expect(returnValue.total).toEqual 2
@@ -323,7 +392,7 @@ describe 'oomphRedisAdaptor#where', ->
                 attributes: 'searchableString'
                 weight: 0.5
               ]
-          wherePromise = @redisObjectClassDataStore.where(whereConditions)
+          wherePromise = @where(whereConditions)
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 2
             expect(returnValue.items[0]).toEqual @testObject1
@@ -331,9 +400,9 @@ describe 'oomphRedisAdaptor#where', ->
             done()
 
         it 'should return an array of objects that includes multiple keywords in any different attributes ordered by relevance by default', (done) ->
-          testPromise1 = @redisObjectClassDataStore.create( searchableText: 'bear', searchableString: 'cow cow' )
-          testPromise2 = @redisObjectClassDataStore.create( searchableText: 'cow cow', searchableString: 'bear' )
-          testPromise3 = @redisObjectClassDataStore.create( searchableText: 'cow', searchableString: 'dog' )
+          testPromise1 = @parentObject.create( searchableText: 'bear', searchableString: 'cow cow' )
+          testPromise2 = @parentObject.create( searchableText: 'cow cow', searchableString: 'bear' )
+          testPromise3 = @parentObject.create( searchableText: 'cow', searchableString: 'dog' )
           whereConditions =
             includes:
               keywords: 'bear cow'
@@ -343,7 +412,7 @@ describe 'oomphRedisAdaptor#where', ->
                 weight: 0.5
               ]
           Promise.all([testPromise1,testPromise2,testPromise3]).done (testobjects) =>
-            wherePromise = @redisObjectClassDataStore.where(whereConditions)
+            wherePromise = @where(whereConditions)
             wherePromise.done (returnValue) =>
               expect(returnValue.items.length).toEqual 2
               expect(returnValue.items).toContain testobjects[1]
@@ -352,18 +421,18 @@ describe 'oomphRedisAdaptor#where', ->
 
     describe 'reference', ->
       beforeEach (done) ->
-        @redisObjectClassDataStore.attributes.oneRef =
+        @parentObject.classAttributes.oneRef =
           dataType: 'reference'
           referenceModelName: 'Reference'
-        @redisObjectClassDataStore.manyReferences =
+        @manyReferences =
           dataType: 'reference'
           many: true
           referenceModelName: 'Reference'
-        ref1 = @referenceModel.create(secondId: 'id1')
-        ref2 = @referenceModel.create(secondId: 'id2')
-        ref3 = @referenceModel.create(secondId: 'id3')
-        ref4 = @referenceModel.create(secondId: 'id4')
-        ref5 = @referenceModel.create(secondId: 'id5')
+        ref1 = @referenceModelCreate(secondId: 'id1')
+        ref2 = @referenceModelCreate(secondId: 'id2')
+        ref3 = @referenceModelCreate(secondId: 'id3')
+        ref4 = @referenceModelCreate(secondId: 'id4')
+        ref5 = @referenceModelCreate(secondId: 'id5')
         createReferencesPromise = Promise.all([ref1, ref2, ref3, ref4, ref5])
         createTestObjectsPromise = createReferencesPromise.then (references) =>
           @ref1Id = references[0].id
@@ -371,9 +440,9 @@ describe 'oomphRedisAdaptor#where', ->
           @ref3Id = references[2].id
           @ref4Id = references[3].id
           @ref5Id = references[4].id
-          testPromise1 = @redisObjectClassDataStore.create( url: 'uniqueValue1', manyReferences: [@ref1Id, @ref2Id], oneRef: @ref4Id )
-          testPromise2 = @redisObjectClassDataStore.create( url: 'uniqueValue2', manyReferences: [@ref2Id], oneRef: @ref4Id )
-          testPromise3 = @redisObjectClassDataStore.create( url: 'uniqueValue3', manyReferences: [@ref1Id, @ref2Id, @ref3Id], oneRef: @ref5Id )
+          testPromise1 = @parentObject.create( url: 'uniqueValue1', manyReferences: [@ref1Id, @ref2Id], oneRef: @ref4Id )
+          testPromise2 = @parentObject.create( url: 'uniqueValue2', manyReferences: [@ref2Id], oneRef: @ref4Id )
+          testPromise3 = @parentObject.create( url: 'uniqueValue3', manyReferences: [@ref1Id, @ref2Id, @ref3Id], oneRef: @ref5Id )
           Promise.all([testPromise1,testPromise2,testPromise3])
         createTestObjectsPromise.then (testObjects) =>
           @testObject1 = testObjects[0]
@@ -383,14 +452,14 @@ describe 'oomphRedisAdaptor#where', ->
 
       describe 'includesAllOf', ->
         it 'returns all objects when all match', (done) ->
-          wherePromise = @redisObjectClassDataStore.where manyReferences: { includesAllOf: [@ref1Id, @ref2Id, @ref3Id] }
+          wherePromise = @where manyReferences: { includesAllOf: [@ref1Id, @ref2Id, @ref3Id] }
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 1
             expect(returnValue.items).toContain @testObject3
             done()
 
         it 'returns some objects when some match', (done) ->
-          wherePromise = @redisObjectClassDataStore.where manyReferences: { includesAllOf: [@ref1Id, @ref2Id] }
+          wherePromise = @where manyReferences: { includesAllOf: [@ref1Id, @ref2Id] }
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 2
             expect(returnValue.items).toContain @testObject1
@@ -398,7 +467,7 @@ describe 'oomphRedisAdaptor#where', ->
             done()
 
         it 'returns one object when one matches', (done) ->
-          wherePromise = @redisObjectClassDataStore.where manyReferences: { includesAllOf: [@ref2Id] }
+          wherePromise = @where manyReferences: { includesAllOf: [@ref2Id] }
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 3
             expect(returnValue.items).toContain @testObject1
@@ -408,14 +477,14 @@ describe 'oomphRedisAdaptor#where', ->
 
       describe 'includesAnyOf', ->
         it 'returns all objects when all match', (done) ->
-          wherePromise = @redisObjectClassDataStore.where manyReferences: { includesAnyOf: [@ref3Id] }
+          wherePromise = @where manyReferences: { includesAnyOf: [@ref3Id] }
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 1
             expect(returnValue.items).toContain @testObject3
             done()
 
         it 'returns some objects when some match', (done) ->
-          wherePromise = @redisObjectClassDataStore.where manyReferences: { includesAnyOf: [@ref1Id, @ref3Id] }
+          wherePromise = @where manyReferences: { includesAnyOf: [@ref1Id, @ref3Id] }
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 2
             expect(returnValue.items).toContain @testObject1
@@ -423,7 +492,7 @@ describe 'oomphRedisAdaptor#where', ->
             done()
 
         it 'returns one object when one matches', (done) ->
-          wherePromise = @redisObjectClassDataStore.where manyReferences: { includesAnyOf: [@ref2Id] }
+          wherePromise = @where manyReferences: { includesAnyOf: [@ref2Id] }
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 3
             expect(returnValue.items).toContain @testObject1
@@ -433,7 +502,7 @@ describe 'oomphRedisAdaptor#where', ->
 
       describe 'non-many', ->
         it 'returns all objects when all match', (done) ->
-          wherePromise = @redisObjectClassDataStore.where oneRef: { anyOf: [@ref4Id, @ref5Id] }
+          wherePromise = @where oneRef: { anyOf: [@ref4Id, @ref5Id] }
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 3
             expect(returnValue.items).toContain @testObject1
@@ -442,7 +511,7 @@ describe 'oomphRedisAdaptor#where', ->
             done()
 
         it 'returns some objects when some match', (done) ->
-          wherePromise = @redisObjectClassDataStore.where oneRef: @ref4Id
+          wherePromise = @where oneRef: @ref4Id
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 2
             expect(returnValue.items).toContain @testObject1
@@ -450,7 +519,7 @@ describe 'oomphRedisAdaptor#where', ->
             done()
 
         it 'returns one object when one matches', (done) ->
-          wherePromise = @redisObjectClassDataStore.where oneRef: @ref5Id
+          wherePromise = @where oneRef: @ref5Id
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 1
             expect(returnValue.items).toContain @testObject3
@@ -458,14 +527,14 @@ describe 'oomphRedisAdaptor#where', ->
 
     describe 'sortBy', ->
       it 'should return an array of objects ordered by a sortable field', (done) ->
-        testPromise1 = @redisObjectClassDataStore.create( url: 'uniqueValue1', sortableString: 'alpha', boolean: true  )
-        testPromise2 = @redisObjectClassDataStore.create( url: 'uniqueValue2', sortableString: 'beta', boolean: false )
-        testPromise3 = @redisObjectClassDataStore.create( url: 'uniqueValue3', sortableString: 'charlie', boolean: true )
+        testPromise1 = @parentObject.create( url: 'uniqueValue1', sortableString: 'alpha', boolean: true  )
+        testPromise2 = @parentObject.create( url: 'uniqueValue2', sortableString: 'beta', boolean: false )
+        testPromise3 = @parentObject.create( url: 'uniqueValue3', sortableString: 'charlie', boolean: true )
         whereConditions =
           boolean: true
           sortBy: 'sortableString'
         Promise.all([testPromise1,testPromise2,testPromise3]).done =>
-          wherePromise = @redisObjectClassDataStore.where(whereConditions)
+          wherePromise = @where(whereConditions)
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 2
             expect(returnValue.items[0]).toEqual jasmine.objectContaining  url: 'uniqueValue1'
@@ -473,9 +542,9 @@ describe 'oomphRedisAdaptor#where', ->
             done()
 
       it 'should return an array of objects that includes keywords in different attributes, ordered by a sortable field (not weight)', (done) ->
-        testPromise1 = @redisObjectClassDataStore.create( url: 'uniqueValue1', searchableText: 'bananas apples throat', searchableString: 'tongue', sortableString: 'charlie' )
-        testPromise2 = @redisObjectClassDataStore.create( url: 'uniqueValue2', searchableText: 'two one four', searchableString: 'neck', sortableString: 'beta' )
-        testPromise3 = @redisObjectClassDataStore.create( url: 'uniqueValue3', searchableText: 'One two Three', searchableString: 'throat', sortableString: 'alpha' )
+        testPromise1 = @parentObject.create( url: 'uniqueValue1', searchableText: 'bananas apples throat', searchableString: 'tongue', sortableString: 'charlie' )
+        testPromise2 = @parentObject.create( url: 'uniqueValue2', searchableText: 'two one four', searchableString: 'neck', sortableString: 'beta' )
+        testPromise3 = @parentObject.create( url: 'uniqueValue3', searchableText: 'One two Three', searchableString: 'throat', sortableString: 'alpha' )
         whereConditions =
           includes:
             keywords: 'throat'
@@ -486,7 +555,7 @@ describe 'oomphRedisAdaptor#where', ->
             ]
           sortBy: 'sortableString'
         Promise.all([testPromise1,testPromise2,testPromise3]).done =>
-          wherePromise = @redisObjectClassDataStore.where(whereConditions)
+          wherePromise = @where(whereConditions)
           wherePromise.done (returnValue) ->
             expect(returnValue.items.length).toEqual 2
             expect(returnValue.items[0]).toEqual jasmine.objectContaining  url: 'uniqueValue3'
@@ -494,18 +563,18 @@ describe 'oomphRedisAdaptor#where', ->
             done()
 
       it 'should return an array of objects randomly ordered', (done) ->
+        # Occassional fail expected - testing random order'
         #FIXME: shouldn't have randomly failing tests
-        console.log 'Occassional fail expected - testing random order'
         urlArray = ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', 'hotel','india', 'juliet' ]
         i = 0
         promiseArray = _.map urlArray, (url) =>
           i++
-          @redisObjectClassDataStore.create( url: url, boolean: (i <= 5) )
+          @parentObject.create( url: url, boolean: (i <= 5) )
         whereConditions =
           sortBy: 'random'
           boolean: true
         Promise.all(promiseArray).done =>
-          wherePromise = @redisObjectClassDataStore.where(whereConditions)
+          wherePromise = @where(whereConditions)
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 5
             expect(returnValue[4]).not.toEqual jasmine.objectContaining  url: 'echo'

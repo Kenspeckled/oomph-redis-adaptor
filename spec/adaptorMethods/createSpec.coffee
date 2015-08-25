@@ -87,11 +87,8 @@ describe 'oomphRedisAdaptor#create', ->
           multi = @redis.multi()
           spyOn(@redis, 'multi').and.returnValue(multi)
           spyOn(multi, 'set')
-          @create(identifier: 'identifierValue').done (createdObject) ->
+          @create(identifier: 'identifierValue').then (createdObject) ->
             expect(multi.set).toHaveBeenCalledWith('TestCreateClass#identifier:identifierValue', createdObject.id)
-            done()
-          , (error) ->
-            console.log error
             done()
 
       describe 'where url is true', ->
