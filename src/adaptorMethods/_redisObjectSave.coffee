@@ -184,7 +184,7 @@ performValidations = (dataFields) ->
       return oomph.validate.apply(this, [attrObj.validates, attrName, attrValue])
   Promise.all(returnedValidations).then (validationArray) ->
     errors =  _(validationArray).flattenDeep().compact().value()
-    return Promise.reject(errors) if not _.isEmpty(errors)
+    return Promise.reject(errors) if !_.isEmpty(errors)
     return true
 
 sendAttributesForSaving = (dataFields, skipValidation) ->
@@ -193,8 +193,11 @@ sendAttributesForSaving = (dataFields, skipValidation) ->
       resolve(true)
     props = dataFields
   else
-    attrs = _.keys(@classAttributes)
-    attrs.push "id"
+    isNewObject = !dataFields.id
+    if isNewObject
+      attrs = ['id'].concat(_.keys(@classAttributes))
+    else
+      attrs = ['id'].concat(_.keys(dataFields))
     sanitisedDataFields = _(dataFields).omit(_.isNull).omit(_.isUndefined).pick(attrs).value()
     props = sanitisedDataFields
     validationPromise = performValidations.apply(this, [props])
