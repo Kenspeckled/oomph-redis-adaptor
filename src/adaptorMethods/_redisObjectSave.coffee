@@ -158,7 +158,7 @@ writeAttributes = (props) ->
         when 'reference'
           namespace = obj.reverseReferenceAttribute || attr
           if obj.many 
-            #FIXME: Does this work !!!!!
+            #FIXME: Does this work? !!!!!
             #multipleValues = _.compact(value.split(","))
             multipleValues = value
             multi.sadd self.className + ":" +  props.id + "#" + attr + ':' + obj.referenceModelName + 'Refs', multipleValues...
@@ -176,19 +176,20 @@ writeAttributes = (props) ->
   return indexPromise
 
 performValidations = (validateFields, dataFields) ->
+  self = this
   if _.isEmpty(dataFields)
     return Promise.reject(new Error "No valid fields given")
-  returnedValidations = _.map validateFields, (attrName) =>
-    attrObj = @classAttributes[attrName]
+  returnedValidations = _.map validateFields, (attrName) ->
+    attrObj = self.classAttributes[attrName]
     if attrObj and attrObj.validates
       attrValue = dataFields[attrName]
-      return oomph.validate.apply(this, [attrObj.validates, attrName, attrValue])
+      return oomph.validate.apply(self, [attrObj.validates, attrName, attrValue])
   Promise.all(returnedValidations).then (validationArray) ->
     errors =  _(validationArray).flattenDeep().compact().value()
-    return Promise.reject(errors) if !_.isEmpty(errors)
-    return true
+    Promise.reject(errors) if !_.isEmpty(errors)
 
 sendAttributesForSaving = (dataFields, skipValidation) ->
+  self = this
   if skipValidation
     validationPromise = new Promise (resolve) ->
       resolve(true)
@@ -196,13 +197,13 @@ sendAttributesForSaving = (dataFields, skipValidation) ->
   else
     isNewObject = !dataFields.id
     if isNewObject
-      attrs = ['id'].concat(_.keys(@classAttributes))
+      attrs = ['id'].concat(_.keys(self.classAttributes))
     else
       attrs = _.keys(dataFields)
     sanitisedDataFields = _(dataFields).omit(_.isNull).omit(_.isUndefined).pick(attrs).value()
     props = sanitisedDataFields
-    validationPromise = performValidations.apply(this, [attrs, props])
-  validationPromise.then =>
-    writeAttributes.apply(this, [props])
+    validationPromise = performValidations.apply(self, [attrs, props])
+  validationPromise.then ->
+    writeAttributes.apply(self, [props])
 
 module.exports = sendAttributesForSaving

@@ -23,9 +23,8 @@ update = (id, updateFields, skipValidation) ->
   callbackPromises = []
   multi = self.redis.multi()
   getOriginalObjPromise = redisFind.apply(self, [id]).then (originalObj) ->
-    if !originalObj
-      throw new Error "Not Found"
-    return originalObj
+    return Promise.reject new Error "Not Found" if !originalObj
+    originalObj
   getOriginalObjPromise.then (originalObj) ->
     updateFieldsDiff = id: id # need to set the id in the object
     for attr in Object.keys(updateFields)
@@ -79,7 +78,6 @@ update = (id, updateFields, skipValidation) ->
     multiPromise.then ->
       sendAttributesForSaving.apply(self, [updateFieldsDiff, skipValidation]).then (writtenObj) ->
         Promise.all(callbackPromises).then ->
-          redisFind.apply(self, [writtenObj.id]).then (obj) ->
-            return obj
+          redisFind.apply(self, [writtenObj.id])
 
 module.exports = update
