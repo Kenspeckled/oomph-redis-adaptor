@@ -132,7 +132,7 @@ describe 'oomphRedisAdaptor#create', ->
       describe 'where searchable is true', ->
         it 'adds to partial words sets when the modules class has attributes with the field type of "string" and is searchable', (done) ->
           spyOn(@redis, 'zadd').and.callThrough()
-          @create(searchableText: 'Search This').then (createdObject) =>
+          @create(searchableText: 'Search This <div>funny</div>').then (createdObject) =>
             calledArgs = @redis.zadd.calls.allArgs()
             keysCalled = []
             for call in calledArgs
@@ -146,6 +146,8 @@ describe 'oomphRedisAdaptor#create', ->
             expect(keysCalled).toContain('TestCreateClass#searchableText/th')
             expect(keysCalled).toContain('TestCreateClass#searchableText/thi')
             expect(keysCalled).toContain('TestCreateClass#searchableText/this')
+            expect(keysCalled).toContain('TestCreateClass#searchableText/funny')
+            expect(keysCalled).not.toContain('TestCreateClass#searchableText/<div>')
             done()
 
     describe 'for integer attributes', ->

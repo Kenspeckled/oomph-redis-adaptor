@@ -146,9 +146,11 @@ writeAttributes = (props) ->
           if obj.identifiable or obj.url
             multi.set self.className + "#" + attr + ":" + value, props.id #string
           if obj.searchable
+            value = _utilities.sanitisedString(value)
             indexingPromises.push indexSearchableString.apply(self, [attr, value, props.id])
         when 'text'
           if obj.searchable
+            value = _utilities.sanitisedString(value)
             indexingPromises.push indexSearchableString.apply(self, [attr, value, props.id])
         when 'boolean'
           if _.includes([true, 'true', false, 'false'], value)

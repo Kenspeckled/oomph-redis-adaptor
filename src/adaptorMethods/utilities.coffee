@@ -89,9 +89,10 @@ utilities =
       lastWord = kebabCaseStr
     kebabCaseStr.replace new RegExp(lastWord + '$'), pluralize(lastWord)
 
-  urlString: (str) ->
+  sanitisedString: (str) ->
     throw new Error "Empty string" if str == ''
     str = str
+      .replace(/<(?:.|\n)*?>/gm, '')
       .replace(/[\u0061\u24D0\uFF41\u1E9A\u00E0\u00E1\u00E2\u1EA7\u1EA5\u1EAB\u1EA9\u00E3\u0101\u0103\u1EB1\u1EAF\u1EB5\u1EB3\u0227\u01E1\u00E4\u01DF\u1EA3\u00E5\u01FB\u01CE\u0201\u0203\u1EA1\u1EAD\u1EB7\u1E01\u0105\u2C65\u0250\u0041\u24B6\uFF21\u00C0\u00C1\u00C2\u1EA6\u1EA4\u1EAA\u1EA8\u00C3\u0100\u0102\u1EB0\u1EAE\u1EB4\u1EB2\u0226\u01E0\u00C4\u01DE\u1EA2\u00C5\u01FA\u01CD\u0200\u0202\u1EA0\u1EAC\u1EB6\u1E00\u0104\u023A\u2C6F]/g, 'a')
       .replace(/[\uA733\uA732]/g, 'aa')
       .replace(/[\u00E6\u01FD\u01E3\u00C6\u01FC\u01E2]/g, 'ae')
@@ -135,6 +136,10 @@ utilities =
       .replace(/[\u0059\u24CE\uFF39\u1EF2\u00DD\u0176\u1EF8\u0232\u1E8E\u0178\u1EF6\u1EF4\u01B3\u024E\u1EFE\u0079\u24E8\uFF59\u1EF3\u00FD\u0177\u1EF9\u0233\u1E8F\u00FF\u1EF7\u1E99\u1EF5\u01B4\u024F\u1EFF]/g, 'y')
       .replace(/[\u005A\u24CF\uFF3A\u0179\u1E90\u017B\u017D\u1E92\u1E94\u01B5\u0224\u2C7F\u2C6B\uA762\u007A\u24E9\uFF5A\u017A\u1E91\u017C\u017E\u1E93\u1E95\u01B6\u0225\u0240\u2C6C\uA763]/g, 'z')
       .replace(/'/g, '')
+
+  urlString: (str) ->
+    throw new Error "Empty string" if str == ''
+    str = utilities.sanitisedString(str)
       .replace(/\%/g, 'percent')
       .replace(/\£/g, 'pounds')
       .replace(/\$/g, 'dollars')
