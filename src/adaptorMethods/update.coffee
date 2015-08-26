@@ -1,6 +1,7 @@
 Promise = require 'promise'
 _ = require 'lodash'
 sendAttributesForSaving = require './_redisObjectSave'
+redisFind = require './find'
 
 removeIndexedSearchableString = (attr, words, id) ->
   indexPromises = []
@@ -21,7 +22,7 @@ update = (id, updateFields, skipValidation) ->
   self = this
   callbackPromises = []
   multi = self.redis.multi()
-  getOriginalObjPromise = self.find(id).then (originalObj) ->
+  getOriginalObjPromise = redisFind.apply(self, [id]).then (originalObj) ->
     if !originalObj
       throw new Error "Not Found"
     return originalObj
@@ -75,7 +76,7 @@ update = (id, updateFields, skipValidation) ->
     multiPromise = new Promise (resolve, reject) ->
       multi.exec ->
         findPromise = sendAttributesForSaving.apply(self, [updateFieldsDiff, skipValidation]).then (writtenObj) ->
-          self.find(writtenObj.id)
+          redisFind.apply(self, [writtenObj.id])
         findPromise.then (found) ->
           resolve(found)
     multiPromise.then (obj) ->
