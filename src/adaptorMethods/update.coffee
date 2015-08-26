@@ -76,9 +76,8 @@ update = (id, updateFields, skipValidation) ->
     multiPromise = new Promise (resolve, reject) ->
       multi.exec ->
         findPromise = sendAttributesForSaving.apply(self, [updateFieldsDiff, skipValidation]).then (writtenObj) ->
-          redisFind.apply(self, [writtenObj.id])
-        findPromise.then (found) ->
-          resolve(found)
+          resolve redisFind.apply(self, [writtenObj.id])
+
     multiPromise.then (obj) ->
       Promise.all(callbackPromises).then ->
         return obj
