@@ -167,8 +167,8 @@ writeAttributes = (props) ->
           else
             multi.sadd obj.referenceModelName + ":" + value + "#" + namespace + ':' +  self.className + 'Refs', props.id
         else
-          if obj['dataType'] != null
-            reject new Error "Unrecognised dataType " + obj.dataType
+          if obj.dataType != null
+            Promise.reject new Error "Unrecognised dataType " + obj.dataType
     new Promise (resolve) ->
       multi.exec ->
         Promise.all(indexingPromises).then ->
