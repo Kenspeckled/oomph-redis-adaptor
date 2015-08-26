@@ -35,10 +35,10 @@ update = (id, updateFields, skipValidation) ->
         attr = attr.replace(/^remove_/, '')
       orderedSetName = self.className + '>' + attr
       originalValue = originalObj[attr]
-      newValue = updateFields[attr]
+      newValue = updateFields[attr] 
+      updateFieldsDiff[attr] = newValue
       # if there is an actual change or it's a boolean
-      if newValue != originalValue or _.includes([true, 'true', false, 'false'], newValue) or removeValue
-        updateFieldsDiff[attr] = newValue
+      if _.isBoolean(newValue) or (newValue and newValue != originalValue) or removeValue
         delete updateFieldsDiff[attr] if remove
         obj = self.classAttributes[attr]
         return if !obj

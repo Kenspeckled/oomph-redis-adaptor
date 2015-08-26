@@ -191,7 +191,7 @@ describe 'oomphRedisAdaptor#update', ->
 
   it 'should remove partial words sets when there is a searchable field', (done) ->
     spyOn(@redis, 'zrem').and.callThrough()
-    @update(@testObj.id, searchableText: null).then (createdObject) =>
+    @update(@testObj.id, searchableText: 'x').then (createdObject) =>
       calledArgs = @redis.zrem.calls.allArgs()
       keysCalled = []
       for call in calledArgs
@@ -238,4 +238,3 @@ describe 'oomphRedisAdaptor#update', ->
           expect(members).toContain 'ref3Id'
           expect(members.length).toEqual 2
           done()
-
