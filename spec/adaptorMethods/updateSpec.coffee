@@ -64,7 +64,7 @@ describe 'oomphRedisAdaptor#update', ->
   beforeEach (done) ->
     # set up exisitng test object to update
     testProps =
-      one: '0'
+      one: 0
       integer: 1
       identifier: "identifier"
       boolean: true
@@ -96,10 +96,36 @@ describe 'oomphRedisAdaptor#update', ->
       expect(error).toEqual new Error "Not Found"
       done()
 
+  it 'should not throw an error when updating without presence validated attribute', (done) ->
+    @parentObject.classAttributes.boolean =
+      dataType: 'boolean'
+      validates:
+        presence: true
+    @update = update.bind(@parentObject)
+    testObjectPromise = @update @testObj.id, one: 111
+    testObjectPromise.done (obj) =>
+      expectedTestObj = @testObj
+      expectedTestObj.one = 111
+      expect(obj).toEqual expectedTestObj
+      done()
+      
+  it 'should throw an error when validations fail', (done) ->
+    @parentObject.classAttributes.boolean =
+      dataType: 'boolean'
+      validates:
+        presence: true
+    @update = update.bind(@parentObject)
+    testObjectPromise = @update @testObj.id, one: 111, boolean: null
+    testObjectPromise.catch (error) =>
+      expect(error).toBe.truthy
+      done()
+
   it 'should update the object when a change is made', (done) ->
     testObjectPromise = @update @testObj.id, one: 111
-    testObjectPromise.then (obj) ->
-      expect(obj.one).toEqual 111
+    testObjectPromise.then (obj) =>
+      expectedTestObj = @testObj
+      expectedTestObj.one = 111
+      expect(obj).toEqual expectedTestObj
       done()
 
   it 'should update the relevant sorted set when an integer field is updated', (done) ->
@@ -122,7 +148,6 @@ describe 'oomphRedisAdaptor#update', ->
         done()
 
   it 'should add to a set when an reference field is updated', (done) ->
-    pending()
     testObjectPromise = @update(@testObj.id, manyReferences: ['editedId1'])
     testObjectPromise.then (obj) =>
       @redis.smembers 'TestUpdateClass:' + @testObj.id + '#manyReferences:ReferenceRefs', (err, members) ->

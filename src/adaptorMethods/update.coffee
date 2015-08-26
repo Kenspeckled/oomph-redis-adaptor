@@ -75,11 +75,11 @@ update = (id, updateFields, skipValidation) ->
             multi.zrem self.className + "#" + attr + ":" + originalValue, id
     multiPromise = new Promise (resolve, reject) ->
       multi.exec ->
-        findPromise = sendAttributesForSaving.apply(self, [updateFieldsDiff, skipValidation]).then (writtenObj) ->
-          resolve redisFind.apply(self, [writtenObj.id])
-
-    multiPromise.then (obj) ->
-      Promise.all(callbackPromises).then ->
-        return obj
+        resolve()
+    multiPromise.then ->
+      sendAttributesForSaving.apply(self, [updateFieldsDiff, skipValidation]).then (writtenObj) ->
+        Promise.all(callbackPromises).then ->
+          redisFind.apply(self, [writtenObj.id]).then (obj) ->
+            return obj
 
 module.exports = update

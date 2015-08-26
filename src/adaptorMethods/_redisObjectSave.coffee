@@ -175,11 +175,12 @@ writeAttributes = (props) ->
           resolve(storedProps)
   return indexPromise
 
-performValidations = (dataFields) ->
+performValidations = (validateFields, dataFields) ->
   if _.isEmpty(dataFields)
     return Promise.reject(new Error "No valid fields given")
-  returnedValidations = _.map @classAttributes, (attrObj, attrName) =>
-    if attrObj.validates
+  returnedValidations = _.map validateFields, (attrName) =>
+    attrObj = @classAttributes[attrName]
+    if attrObj and attrObj.validates
       attrValue = dataFields[attrName]
       return oomph.validate.apply(this, [attrObj.validates, attrName, attrValue])
   Promise.all(returnedValidations).then (validationArray) ->
@@ -197,10 +198,10 @@ sendAttributesForSaving = (dataFields, skipValidation) ->
     if isNewObject
       attrs = ['id'].concat(_.keys(@classAttributes))
     else
-      attrs = ['id'].concat(_.keys(dataFields))
+      attrs = _.keys(dataFields)
     sanitisedDataFields = _(dataFields).omit(_.isNull).omit(_.isUndefined).pick(attrs).value()
     props = sanitisedDataFields
-    validationPromise = performValidations.apply(this, [props])
+    validationPromise = performValidations.apply(this, [attrs, props])
   validationPromise.then =>
     writeAttributes.apply(this, [props])
 
