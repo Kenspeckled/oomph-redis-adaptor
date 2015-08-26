@@ -156,7 +156,7 @@ where = (args) ->
           self.redis.zrevrange idKey, start, end, (error, ids) ->
             ids.reverse() if args.sortDirection == 'desc'
             self.redis.del idKey, ->
-            resolve {ids, totalResults, facetResults}
+              resolve {ids, totalResults, facetResults}
     matchedIdsPromise.then (resultObject) ->
       ids = resultObject.ids
       if args.sortBy == 'random'

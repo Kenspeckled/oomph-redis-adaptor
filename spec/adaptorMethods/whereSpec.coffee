@@ -85,11 +85,12 @@ describe 'oomphRedisAdaptor#where', ->
     Promise.all([testPromise1,testPromise2,testPromise3]).done =>
       wherePromise = @where(integer: 1)
       wherePromise.done (returnValue) =>
+        # Key expires in one second
         setTimeout =>
           @redis.keys 'temporary*', (err, keys) ->
             expect(keys).toEqual []
             done()
-        ,1100
+        , 1000
 
   it 'should return a promise', ->
     testObject = @where(one: '1')
@@ -110,12 +111,13 @@ describe 'oomphRedisAdaptor#where', ->
     testPromise1 = @parentObject.create( url: 'uniqueValue1', one: 2 )
     testPromise2 = @parentObject.create( url: 'uniqueValue2', one: 1 )
     testPromise3 = @parentObject.create( url: 'uniqueValue3', one: 1 )
-    Promise.all([testPromise1,testPromise2,testPromise3]).done =>
+    Promise.all([testPromise1,testPromise2,testPromise3]).done (testObjects) =>
+      [@testObject1, @testObject2, @testObject3] = testObjects
       wherePromise = @where(one: equalTo: 2)
       wherePromise.done (returnValue) =>
         expect(returnValue.total).toEqual 1
         expect(returnValue.items.length).toEqual 1
-        expect(returnValue.items[0]).toEqual jasmine.objectContaining  url: 'uniqueValue1'
+        expect(returnValue.items[0]).toEqual @testObject1
         done()
 
   it 'should return correct test objects when multiple properties conditions are met', (done) ->
@@ -157,11 +159,12 @@ describe 'oomphRedisAdaptor#where', ->
     testPromise1 = @parentObject.create( url: 'uniqueValue1', one: 1 )
     testPromise2 = @parentObject.create( url: 'uniqueValue2', one: 1 )
     testPromise3 = @parentObject.create( url: 'uniqueValue3', one: null )
-    Promise.all([testPromise1,testPromise2,testPromise3]).then (createdObjectArray) =>
+    Promise.all([testPromise1,testPromise2,testPromise3]).then (testObjects) =>
+      [@testObject1, @testObject2, @testObject3] = testObjects
       wherePromise = @where(one: 1)
       wherePromise.done (returnValue) =>
-        expect(returnValue.items).toContain createdObjectArray[0]
-        expect(returnValue.items).toContain createdObjectArray[1]
+        expect(returnValue.items).toContain @testObject1
+        expect(returnValue.items).toContain @testObject2
         expect(returnValue.items.length).toEqual 2
         expect(returnValue.total).toEqual 2
         done()
@@ -202,9 +205,7 @@ describe 'oomphRedisAdaptor#where', ->
         testPromise2 = @parentObject.create( url: 'uniqueValue2', integer: 10 )
         testPromise3 = @parentObject.create( url: 'uniqueValue3', integer: 15 )
         Promise.all([testPromise1,testPromise2,testPromise3]).then (testObjects) =>
-          @testObject1 = testObjects[0]
-          @testObject2 = testObjects[1]
-          @testObject3 = testObjects[2]
+          [@testObject1, @testObject2, @testObject3] = testObjects
           done()
 
       it 'should return an array of objects that have an integer greater than', (done) ->
@@ -270,9 +271,7 @@ describe 'oomphRedisAdaptor#where', ->
         testPromise2 = @parentObject.create( url: 'uniqueValue2', searchableText: 'two one four', searchableString: 'neck apples' )
         testPromise3 = @parentObject.create( url: 'uniqueValue3', searchableText: 'One two Three throat', searchableString: 'throat two' )
         Promise.all([testPromise1,testPromise2,testPromise3]).then (testObjects) =>
-          @testObject1 = testObjects[0]
-          @testObject2 = testObjects[1]
-          @testObject3 = testObjects[2]
+          [@testObject1, @testObject2, @testObject3] = testObjects
           done()
 
       it 'should return an array of objects that includes case insensitive keywords', (done) ->
@@ -411,12 +410,13 @@ describe 'oomphRedisAdaptor#where', ->
                 attributes: 'searchableString'
                 weight: 0.5
               ]
-          Promise.all([testPromise1,testPromise2,testPromise3]).done (testobjects) =>
+          Promise.all([testPromise1,testPromise2,testPromise3]).done (testObjects) =>
+            [@testObject1, @testObject2, @testObject3] = testObjects
             wherePromise = @where(whereConditions)
             wherePromise.done (returnValue) =>
               expect(returnValue.items.length).toEqual 2
-              expect(returnValue.items).toContain testobjects[1]
-              expect(returnValue.items).toContain testobjects[0]
+              expect(returnValue.items).toContain @testObject2
+              expect(returnValue.items).toContain @testObject1
               done()
 
     describe 'reference', ->
@@ -433,33 +433,26 @@ describe 'oomphRedisAdaptor#where', ->
         ref3 = @referenceModelCreate(secondId: 'id3')
         ref4 = @referenceModelCreate(secondId: 'id4')
         ref5 = @referenceModelCreate(secondId: 'id5')
-        createReferencesPromise = Promise.all([ref1, ref2, ref3, ref4, ref5])
-        createTestObjectsPromise = createReferencesPromise.then (references) =>
-          @ref1Id = references[0].id
-          @ref2Id = references[1].id
-          @ref3Id = references[2].id
-          @ref4Id = references[3].id
-          @ref5Id = references[4].id
-          testPromise1 = @parentObject.create( url: 'uniqueValue1', manyReferences: [@ref1Id, @ref2Id], oneRef: @ref4Id )
-          testPromise2 = @parentObject.create( url: 'uniqueValue2', manyReferences: [@ref2Id], oneRef: @ref4Id )
-          testPromise3 = @parentObject.create( url: 'uniqueValue3', manyReferences: [@ref1Id, @ref2Id, @ref3Id], oneRef: @ref5Id )
+        createTestObjectsPromise = Promise.all([ref1, ref2, ref3, ref4, ref5]).then (references) =>
+          [@ref1, @ref2, @ref3, @ref4, @ref5] = references
+          testPromise1 = @parentObject.create( url: 'uniqueValue1', manyReferences: [@ref1.id, @ref2.id], oneRef: @ref4.id )
+          testPromise2 = @parentObject.create( url: 'uniqueValue2', manyReferences: [@ref2.id], oneRef: @ref4.id )
+          testPromise3 = @parentObject.create( url: 'uniqueValue3', manyReferences: [@ref1.id, @ref2.id, @ref3.id], oneRef: @ref5.id )
           Promise.all([testPromise1,testPromise2,testPromise3])
         createTestObjectsPromise.then (testObjects) =>
-          @testObject1 = testObjects[0]
-          @testObject2 = testObjects[1]
-          @testObject3 = testObjects[2]
+          [@testObject1, @testObject2, @testObject3] = testObjects
           done()
 
       describe 'includesAllOf', ->
         it 'returns all objects when all match', (done) ->
-          wherePromise = @where manyReferences: { includesAllOf: [@ref1Id, @ref2Id, @ref3Id] }
+          wherePromise = @where manyReferences: { includesAllOf: [@ref1.id, @ref2.id, @ref3.id] }
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 1
             expect(returnValue.items).toContain @testObject3
             done()
 
         it 'returns some objects when some match', (done) ->
-          wherePromise = @where manyReferences: { includesAllOf: [@ref1Id, @ref2Id] }
+          wherePromise = @where manyReferences: { includesAllOf: [@ref1.id, @ref2.id] }
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 2
             expect(returnValue.items).toContain @testObject1
@@ -467,7 +460,7 @@ describe 'oomphRedisAdaptor#where', ->
             done()
 
         it 'returns one object when one matches', (done) ->
-          wherePromise = @where manyReferences: { includesAllOf: [@ref2Id] }
+          wherePromise = @where manyReferences: { includesAllOf: [@ref2.id] }
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 3
             expect(returnValue.items).toContain @testObject1
@@ -477,14 +470,14 @@ describe 'oomphRedisAdaptor#where', ->
 
       describe 'includesAnyOf', ->
         it 'returns all objects when all match', (done) ->
-          wherePromise = @where manyReferences: { includesAnyOf: [@ref3Id] }
+          wherePromise = @where manyReferences: { includesAnyOf: [@ref3.id] }
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 1
             expect(returnValue.items).toContain @testObject3
             done()
 
         it 'returns some objects when some match', (done) ->
-          wherePromise = @where manyReferences: { includesAnyOf: [@ref1Id, @ref3Id] }
+          wherePromise = @where manyReferences: { includesAnyOf: [@ref1.id, @ref3.id] }
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 2
             expect(returnValue.items).toContain @testObject1
@@ -492,7 +485,7 @@ describe 'oomphRedisAdaptor#where', ->
             done()
 
         it 'returns one object when one matches', (done) ->
-          wherePromise = @where manyReferences: { includesAnyOf: [@ref2Id] }
+          wherePromise = @where manyReferences: { includesAnyOf: [@ref2.id] }
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 3
             expect(returnValue.items).toContain @testObject1
@@ -502,7 +495,7 @@ describe 'oomphRedisAdaptor#where', ->
 
       describe 'non-many', ->
         it 'returns all objects when all match', (done) ->
-          wherePromise = @where oneRef: { anyOf: [@ref4Id, @ref5Id] }
+          wherePromise = @where oneRef: { anyOf: [@ref4.id, @ref5.id] }
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 3
             expect(returnValue.items).toContain @testObject1
@@ -511,7 +504,7 @@ describe 'oomphRedisAdaptor#where', ->
             done()
 
         it 'returns some objects when some match', (done) ->
-          wherePromise = @where oneRef: @ref4Id
+          wherePromise = @where oneRef: @ref4.id
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 2
             expect(returnValue.items).toContain @testObject1
@@ -519,7 +512,7 @@ describe 'oomphRedisAdaptor#where', ->
             done()
 
         it 'returns one object when one matches', (done) ->
-          wherePromise = @where oneRef: @ref5Id
+          wherePromise = @where oneRef: @ref5.id
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 1
             expect(returnValue.items).toContain @testObject3
@@ -533,12 +526,13 @@ describe 'oomphRedisAdaptor#where', ->
         whereConditions =
           boolean: true
           sortBy: 'sortableString'
-        Promise.all([testPromise1,testPromise2,testPromise3]).done =>
+        Promise.all([testPromise1,testPromise2,testPromise3]).done (testObjects) =>
+          [@testObject1, @testObject2, @testObject3] = testObjects
           wherePromise = @where(whereConditions)
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 2
-            expect(returnValue.items[0]).toEqual jasmine.objectContaining  url: 'uniqueValue1'
-            expect(returnValue.items[1]).toEqual jasmine.objectContaining  url: 'uniqueValue3'
+            expect(returnValue.items[0]).toEqual @testObject1
+            expect(returnValue.items[1]).toEqual @testObject3
             done()
 
       it 'should return an array of objects that includes keywords in different attributes, ordered by a sortable field (not weight)', (done) ->
@@ -554,12 +548,13 @@ describe 'oomphRedisAdaptor#where', ->
               weight: 2
             ]
           sortBy: 'sortableString'
-        Promise.all([testPromise1,testPromise2,testPromise3]).done =>
+        Promise.all([testPromise1,testPromise2,testPromise3]).done (testObjects) =>
+          [@testObject1, @testObject2, @testObject3] = testObjects
           wherePromise = @where(whereConditions)
           wherePromise.done (returnValue) ->
             expect(returnValue.items.length).toEqual 2
-            expect(returnValue.items[0]).toEqual jasmine.objectContaining  url: 'uniqueValue3'
-            expect(returnValue.items[1]).toEqual jasmine.objectContaining  url: 'uniqueValue1'
+            expect(returnValue.items[0]).toEqual @testObject3
+            expect(returnValue.items[1]).toEqual @testObject1
             done()
 
       it 'should return an array of objects randomly ordered', (done) ->
