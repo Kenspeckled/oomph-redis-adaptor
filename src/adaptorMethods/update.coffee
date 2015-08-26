@@ -74,10 +74,10 @@ update = (id, updateFields, skipValidation) ->
             multi.zrem self.className + "#" + attr + ":" + originalValue, id
     multiPromise = new Promise (resolve, reject) ->
       multi.exec ->
-        sendAttributesForSaving.apply(self, [updateFieldsDiff, skipValidation]).then (writtenObj) ->
-          resolve self.find(writtenObj.id)
-        , (error) ->
-          reject error
+        findPromise = sendAttributesForSaving.apply(self, [updateFieldsDiff, skipValidation]).then (writtenObj) ->
+          self.find(writtenObj.id)
+        findPromise.then (found) ->
+          resolve(found)
     multiPromise.then (obj) ->
       Promise.all(callbackPromises).then ->
         return obj
