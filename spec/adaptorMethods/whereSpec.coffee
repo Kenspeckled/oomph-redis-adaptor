@@ -551,7 +551,7 @@ describe 'oomphRedisAdaptor#where', ->
         Promise.all([testPromise1,testPromise2,testPromise3]).done (testObjects) =>
           [@testObject1, @testObject2, @testObject3] = testObjects
           wherePromise = @where(whereConditions)
-          wherePromise.done (returnValue) ->
+          wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 2
             expect(returnValue.items[0]).toEqual @testObject3
             expect(returnValue.items[1]).toEqual @testObject1
