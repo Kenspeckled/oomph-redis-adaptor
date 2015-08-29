@@ -12,7 +12,6 @@ idToCreatedAtDate = (id) ->
 
 createObjectFromHash = (hash, modelClass) ->
   obj = {}
-  obj = new modelClass() if modelClass and modelClass.prototype
   return false if !hash
   obj.createdAt = idToCreatedAtDate(hash.id) if hash.id
   for key, value of hash
@@ -25,6 +24,7 @@ createObjectFromHash = (hash, modelClass) ->
         obj[plainKey] = parseInt(value)
     else
       obj[key] = value
+  return new modelClass(obj) if modelClass and modelClass.prototype
   obj
 
 # FIXME: In need of refactor - lots of code smell
