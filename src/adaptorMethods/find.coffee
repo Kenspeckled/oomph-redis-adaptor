@@ -76,8 +76,10 @@ find = (id) ->
       obj = createObjectFromHash(hash, self)
       if obj.initializedVal instanceof Promise
         obj.initializedVal.then ->
+          delete obj.initializedVal
           obj
       else
+        delete obj.initializedVal
         obj
 
 module.exports = find
