@@ -73,6 +73,11 @@ find = (id) ->
     Promise.all(referencePromises).then (referenceObjects) ->
       _.each referenceObjects, (refObj) ->
         hash[refObj.propertyName] = refObj.referenceValue
-      createObjectFromHash(hash, self)
+      obj = createObjectFromHash(hash, self)
+      if obj.initializedVal instanceof Promise
+        obj.initializedVal.then ->
+          obj
+      else
+        obj
 
 module.exports = find
