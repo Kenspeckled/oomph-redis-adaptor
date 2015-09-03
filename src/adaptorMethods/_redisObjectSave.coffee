@@ -114,8 +114,8 @@ writeAttributes = (props) ->
                     props[attr] = modifiedIdentifier #override original props
                     isUnique = true if !res
                     resolve()
-            if newObjectFlag or storableProps[attr]
-              identifier = if storableProps[attr] then _utilities.urlString(storableProps[attr]) else _utilities.urlString(props[obj.urlBaseAttribute])  # only define url if not manually defined
+            if newObjectFlag # only set url once - this value should not update
+              identifier = if storableProps[attr] then _utilities.urlString(storableProps[attr]) else _utilities.urlString(props[obj.urlBaseAttribute])  # only define url automatically if not manually defined
               writeCallbackPromises.push findExistingAttr(attr, identifier)
     Promise.all(writeCallbackPromises).then ->
       new Promise (resolve) ->
