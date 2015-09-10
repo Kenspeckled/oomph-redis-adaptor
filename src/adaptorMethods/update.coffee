@@ -78,6 +78,9 @@ update = (id, updateFields, skipValidation) ->
     multiPromise.then ->
       sendAttributesForSaving.apply(self, [updateFieldsDiff, skipValidation]).then (writtenObj) ->
         Promise.all(callbackPromises).then ->
-          redisFind.apply(self, [writtenObj.id])
+          redisFind.apply(self, [writtenObj.id]).then (found) ->
+            afterSavePromise = if found.afterSave? then found.afterSave() else null 
+            Promise.all([afterSavePromise]).then ->
+              found
 
 module.exports = update
