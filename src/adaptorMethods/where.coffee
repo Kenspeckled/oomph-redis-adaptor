@@ -1,6 +1,7 @@
 Promise = require 'promise'
 _ = require 'lodash'
 _utilities = require './utilities'
+redisFind = require './find'
 
 findKeywordsInAnyFields = (fields, keywords, weightOptions) ->
     unionkeyNames = []
@@ -165,7 +166,7 @@ where = (args) ->
         else
           ids = _.shuffle ids
       promises = _.map ids, (id) ->
-        self.find(id)
+        redisFind.apply(self, [id])
       Promise.all(promises).then (resultItems) ->
         _resultObject =
           className: self.className
