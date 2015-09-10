@@ -691,7 +691,7 @@ describe 'oomphRedisAdaptor#create', ->
           expect(errors).toContain(new Error 'uniquenessValidation should be a unique value')
           done()
 
-  fdescribe 'afterSave', ->
+  describe 'afterSave', ->
     it 'should perform an after save callback', (done) ->
       pending()
       @parentObject.afterSave = new Promise (resolve) ->
