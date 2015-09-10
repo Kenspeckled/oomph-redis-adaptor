@@ -43,7 +43,7 @@ find = (id) ->
       attrSettings = self.classAttributes[propertyName]
       continue if _.isUndefined(propertyValue) 
       if attrSettings.dataType == 'reference'
-        if attrSettings.many?
+        if attrSettings.many
           getReferenceIdsFn = (propertyName, referenceModelName) ->
             new Promise (resolve, reject) ->
               referenceKey = self.className + ':' + id + '#' + propertyName + ':' + referenceModelName + 'Refs'
