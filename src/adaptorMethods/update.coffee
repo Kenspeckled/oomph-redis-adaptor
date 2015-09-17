@@ -18,7 +18,7 @@ removeIndexedSearchableString = (attr, words, id) ->
       indexPromises.push indexPromiseFn(wordSegmentKey, id)
   Promise.all(indexPromises)
 
-update = (id, updateFields, skipValidation) ->
+update = (id, updateFields, skipValidation, skipAfterSave) ->
   self = this
   callbackPromises = []
   multi = self.redis.multi()
@@ -79,7 +79,7 @@ update = (id, updateFields, skipValidation) ->
       sendAttributesForSaving.apply(self, [updateFieldsDiff, skipValidation]).then (writtenObj) ->
         Promise.all(callbackPromises).then ->
           redisFind.apply(self, [writtenObj.id]).then (found) ->
-            afterSavePromise = if found.afterSave? then found.afterSave() else null 
+            afterSavePromise = if found.afterSave? and !skipAfterSave then found.afterSave() else null 
             Promise.all([afterSavePromise]).then ->
               found
 
