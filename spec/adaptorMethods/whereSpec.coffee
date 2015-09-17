@@ -100,7 +100,8 @@ describe 'oomphRedisAdaptor#where', ->
     testPromise1 = @parentObject.create( url: 'uniqueValue1', boolean: true )
     testPromise2 = @parentObject.create( url: 'uniqueValue2', boolean: true )
     testPromise3 = @parentObject.create( url: 'uniqueValue3', boolean: false )
-    Promise.all([testPromise1,testPromise2,testPromise3]).done =>
+    testPromise4 = @parentObject.create( url: 'uniqueValue3', boolean: 'false' )
+    Promise.all([testPromise1,testPromise2,testPromise3,testPromise4]).done =>
       wherePromise = @where(boolean: true)
       wherePromise.done (returnValue) =>
         expect(returnValue.total).toEqual 2
@@ -181,7 +182,7 @@ describe 'oomphRedisAdaptor#where', ->
           expect(secondResultArray.total).toEqual 3
           done()
 
-  it "should default to sorting by created at time (alphabetically by id)", (done) ->
+  it "should default to sorting by created at time (reverse alphabetically by id)", (done) ->
     createDelayedObj = (integer) ->
       new Promise (resolve) =>
         setTimeout =>
@@ -191,9 +192,9 @@ describe 'oomphRedisAdaptor#where', ->
     for i in [0..9]
       delayedCreatePromises.push createDelayedObj.apply(this, [i%2])
     Promise.all(delayedCreatePromises).then (createdObjectArray) =>
-      @where(integer: equalTo: 1).done (returnArray) ->
+      @where(integer: {equalTo: 1}, sortDirection: 'asc').done (returnArray) ->
         returnedIds = if returnArray then _.map(returnArray.items.ids, (x) -> x.id ) else []
-        sortedReturnedIds = returnedIds.sort (a,b) -> a > b
+        sortedReturnedIds = returnedIds.sort (a,b) -> return a > b
         expect(returnArray.items.length).toEqual 5
         expect(returnedIds).toEqual sortedReturnedIds
         done()
@@ -374,6 +375,7 @@ describe 'oomphRedisAdaptor#where', ->
                 attributes: 'searchableText'
                 weight: 0.5
               ]
+            sortDirection: 'asc'
           wherePromise = @where(whereConditions)
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 2
@@ -391,6 +393,7 @@ describe 'oomphRedisAdaptor#where', ->
                 attributes: 'searchableString'
                 weight: 0.5
               ]
+            sortDirection: 'asc'
           wherePromise = @where(whereConditions)
           wherePromise.done (returnValue) =>
             expect(returnValue.items.length).toEqual 2
@@ -410,6 +413,7 @@ describe 'oomphRedisAdaptor#where', ->
                 attributes: 'searchableString'
                 weight: 0.5
               ]
+            sortDirection: 'asc'
           Promise.all([testPromise1,testPromise2,testPromise3]).done (testObjects) =>
             [@testObject1, @testObject2, @testObject3] = testObjects
             wherePromise = @where(whereConditions)
@@ -526,6 +530,7 @@ describe 'oomphRedisAdaptor#where', ->
         whereConditions =
           boolean: true
           sortBy: 'sortableString'
+          sortDirection: 'asc'
         Promise.all([testPromise1,testPromise2,testPromise3]).done (testObjects) =>
           [@testObject1, @testObject2, @testObject3] = testObjects
           wherePromise = @where(whereConditions)
@@ -548,6 +553,7 @@ describe 'oomphRedisAdaptor#where', ->
               weight: 2
             ]
           sortBy: 'sortableString'
+          sortDirection: 'asc'
         Promise.all([testPromise1,testPromise2,testPromise3]).done (testObjects) =>
           [@testObject1, @testObject2, @testObject3] = testObjects
           wherePromise = @where(whereConditions)

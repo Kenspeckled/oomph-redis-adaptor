@@ -86,9 +86,9 @@ writeAttributes = (props) ->
             props[attr] = +props[attr] #override original props
             delete storableProps[attr]
         when 'boolean'
-          if storableProps[attr] != undefined
+          if storableProps[attr]?
             storableProps[attr + '[b]'] = props[attr]
-            props[attr] = !!props[attr] #override original props
+            props[attr] = if props[attr] == 'false' then false else !!props[attr] #override original props
             delete storableProps[attr]
         when 'reference'
           if obj.many

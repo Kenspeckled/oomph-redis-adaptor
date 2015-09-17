@@ -36,6 +36,10 @@ describe 'oomphRedisAdaptor#find', ->
         secondId:
           dataType: 'string'
           identifiable: true
+        reverseManyReference:
+          dataType: 'reference'
+          referenceModelName: 'TestUpdateClass'
+          reverseReferenceAttribute: 'manyReferences'
     @referenceModelCreate = create.bind(referenceModelparentObject)
 
   afterEach (done) ->
@@ -114,6 +118,24 @@ describe 'oomphRedisAdaptor#find', ->
       @parentObject.create(testProps).then (createdObject) =>
         findPromise = @find(createdObject.id)
         findPromise.done (foundObj) ->
+          expect(foundObj.manyReferences).toContain referencesObjects[0]
+          expect(foundObj.manyReferences).toContain referencesObjects[1]
+          expect(foundObj.manyReferences).toContain referencesObjects[2]
+          expect(foundObj.manyReferences.length).toEqual 3
+          done()
+
+  it 'should return an array of reference ids when many is true and reverseReferenceAttribute is set', (done) ->
+    pending()
+    testProps =  url: 'new'
+    @parentObject.create(testProps).then (createdObject) =>
+      ref1 = @referenceModelCreate(reverseManyReference: createdObject.id, secondId: 'id1')
+      ref2 = @referenceModelCreate(reverseManyReference: createdObject.id, secondId: 'id2')
+      ref3 = @referenceModelCreate(reverseManyReference: createdObject.id, secondId: 'id3')
+      createReferencesPromise = Promise.all([ref1, ref2, ref3])
+      createReferencesPromise.done (referencesObjects) =>
+        findPromise = @find(createdObject.id)
+        findPromise.done (foundObj) ->
+          console.log foundObj
           expect(foundObj.manyReferences).toContain referencesObjects[0]
           expect(foundObj.manyReferences).toContain referencesObjects[1]
           expect(foundObj.manyReferences).toContain referencesObjects[2]
