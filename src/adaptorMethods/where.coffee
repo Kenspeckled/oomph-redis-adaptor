@@ -41,12 +41,12 @@ where = (args) ->
   if args.sortBy == 'random'
     start = 0
     end = -1
+  else if args.sortDirection == 'desc'
+    end = if args.offset > 0 then ((args.offset + 1) * -1) else -1
+    start = if args.limit > 0 then (end - (args.limit - 1)) else 0
   else
     start = +args.offset
     end = if args.limit > 0 then (args.limit - 1) + args.offset else -1
-  if args.sortDirection == 'desc'
-    end = if args.offset > 0 then -(args.offset + 1) else -1
-    start = if args.limit > 0 then end - (args.limit - 1) else 0
   sortedSetKeys = []
   unionSortedSetKeys = []
   if args.sortBy == 'random'
