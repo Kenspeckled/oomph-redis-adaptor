@@ -34,7 +34,7 @@ where = (args) ->
   self = this
   args ||= {}
   args.sortBy ||= (if args.includes then 'relevance' else 'id')
-  args.sortDirection ||= 'asc'
+  args.sortDirection ||= 'desc' 
   args.sortDirection.toLowerCase()
   args.limit ||= null
   args.offset ||= null
