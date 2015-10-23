@@ -171,7 +171,7 @@ where = (args) ->
         _resultObject =
           className: self.className
           total: resultObject.totalResults
-          offset: start
+          offset: args.offset
           facets: resultObject.facetResults
           items: resultItems
 
