@@ -39,7 +39,6 @@ update = (id, updateFields, skipValidation, skipAfterSave) ->
       updateFieldsDiff[attr] = newValue
       # if there is an actual change or it's a boolean
       if _.isBoolean(newValue) or (newValue and newValue != originalValue) or removeValue
-        delete updateFieldsDiff[attr] if remove
         obj = self.classAttributes[attr]
         return if !obj
         switch obj.dataType
