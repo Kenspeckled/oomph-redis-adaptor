@@ -38,7 +38,7 @@ update = (id, updateFields, skipValidation, skipAfterSave) ->
       newValue = updateFields[attr] 
       updateFieldsDiff[attr] = newValue
       # if there is an actual change or it's a boolean
-      if _.isBoolean(newValue) or (newValue and newValue != originalValue) or removeValue
+      if _.isBoolean(newValue) or (newValue and newValue != originalValue) or remove
         obj = self.classAttributes[attr]
         return if !obj
         switch obj.dataType
@@ -58,7 +58,7 @@ update = (id, updateFields, skipValidation, skipAfterSave) ->
           when 'reference'
             namespace = obj.reverseReferenceAttribute || attr
             if obj.many
-              if remove
+              if remove and removeValue
                 multi.srem self.className + ":" +  id + "#" + attr + ':' + obj.referenceModelName + 'Refs', removeValue...
                 removeValue.forEach (vid) ->
                   multi.srem obj.referenceModelName + ":" +  vid + "#" + namespace + ':' + self.className + 'Refs', id
