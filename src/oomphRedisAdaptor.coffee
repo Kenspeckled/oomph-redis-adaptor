@@ -23,9 +23,9 @@ oomphRedisAdaptor =
     _class.findBy = findBy
     _class.where = where
     _class.all = all
+    _class.destroy = destroy
 
     _class::save = save
-    _class::destroy = destroy
     #_class::isValid = -> performValidations(this)
 
     return _class
