@@ -6,7 +6,7 @@ destroy = (id) ->
   removeFields = {}
   for attr in Object.keys(@classAttributes)
     removeFields['remove_' + attr] = (this[attr] || "")
-  redisUpdate.apply(this, [id, removeFields]).then (newProps) =>
+  redisUpdate.apply(this, [id, removeFields, true]).then (newProps) =>
     new Promise (resolve, reject) =>
       @redis.del @className + ':' + id, (err, response) ->
         return reject(err) if err
