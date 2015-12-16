@@ -67,8 +67,7 @@ update = (id, updateFields, skipValidation, skipAfterSave) ->
                 intersectingValues = _.intersection(originalIds, newValue)
                 updateFieldsDiff[attr] = intersectingValues if !_.isEmpty(intersectingValues)
             else
-              if remove
-                multi.srem obj.referenceModelName + ":" + originalValue + "#" + namespace + ':' + self.className + 'Refs', id
+              multi.srem obj.referenceModelName + ":" + originalValue.id + "#" + namespace + ':' + self.className + 'Refs', id
           when 'boolean'
             multi.zrem self.className + "#" + attr + ":" + originalValue, id
     multiPromise = new Promise (resolve, reject) ->
