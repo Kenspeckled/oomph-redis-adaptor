@@ -11,10 +11,10 @@ describe 'oomphRedisAdaptor#create', ->
     done()
 
   beforeEach ->
-    @parentObject = 
+    @parentObject =
       className: 'TestCreateClass'
-      redis: @redis 
-      classAttributes: 
+      redis: @redis
+      classAttributes:
         name:
           dataType: 'string'
         url:
@@ -57,10 +57,10 @@ describe 'oomphRedisAdaptor#create', ->
         boolean:
           dataType: 'boolean'
     @create = create.bind(@parentObject)
-    referenceModelparentObject = 
+    referenceModelparentObject =
       className: 'Reference'
-      redis: @redis 
-      classAttributes: 
+      redis: @redis
+      classAttributes:
         secondId:
           dataType: 'string'
           identifiable: true
@@ -69,12 +69,12 @@ describe 'oomphRedisAdaptor#create', ->
   afterEach (done) ->
     @redis.flushdb()
     done()
-  
+
   afterAll (done) ->
     @redis.flushdb()
     @redis.end()
     done()
-  
+
   it 'should return a promise', ->
     createPromise = @create(integer: 1)
     expect(createPromise).toEqual jasmine.any(Promise)
@@ -94,7 +94,7 @@ describe 'oomphRedisAdaptor#create', ->
       describe 'where url is true', ->
         it 'stores the generated url string in the object hash ', (done) ->
           @create(name: "Héllo & gøød nîght").then (createdObject) ->
-            expect(createdObject.url).toEqual 'hello-and-good-night' 
+            expect(createdObject.url).toEqual 'hello-and-good-night'
             done()
 
         it 'adds to a key-value pair with a generated url string', (done) ->
@@ -109,9 +109,9 @@ describe 'oomphRedisAdaptor#create', ->
           @create(name: "Héllo & gøød nîght").then (obj1) =>
             @create(name: "Héllo & good night").then (obj2) =>
               @create(name: "Hello & good night").then (obj3) ->
-                expect(obj1.url).toEqual 'hello-and-good-night' 
-                expect(obj2.url).toEqual 'hello-and-good-night-1' 
-                expect(obj3.url).toEqual 'hello-and-good-night-2' 
+                expect(obj1.url).toEqual 'hello-and-good-night'
+                expect(obj2.url).toEqual 'hello-and-good-night-1'
+                expect(obj3.url).toEqual 'hello-and-good-night-2'
                 done()
 
       describe 'where sortable is true', ->
@@ -239,7 +239,7 @@ describe 'oomphRedisAdaptor#create', ->
           @referenceModelCreate(secondId: 'id1').done (ref1) =>
             @create(reference: ref1.id).then (createdObject) =>
               @redis.hgetall 'TestCreateClass:' + createdObject.id, (err, obj) ->
-                expect(obj.reference).toEqual ref1.id 
+                expect(obj.reference).toEqual ref1.id
                 done()
 
   it 'should return a promise', ->

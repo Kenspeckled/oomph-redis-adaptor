@@ -9,13 +9,13 @@ save = require './adaptorMethods/save'
 destroy = require './adaptorMethods/destroy'
 
 oomphRedisAdaptor =
-    
+
   connectAdaptor: (_class) ->
 
     port = global.oomphRedisPort || 6379
     host = global.oomphRedisHost || '127.0.0.1'
     options = global.oomphRedisOptions ||  {}
-    _class.redis = redis.createClient(port, host, options) 
+    _class.redis = redis.createClient(port, host, options)
 
     _class.create = create
     _class.update = update

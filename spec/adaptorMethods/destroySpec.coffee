@@ -12,12 +12,12 @@ describe 'oomphRedisAdaptor#destroy', ->
     done()
 
   beforeEach ->
-    @parentObject = 
+    @parentObject =
       className: 'TestUpdateClass'
       redis: @redis
       create: create
       find: find
-      classAttributes: 
+      classAttributes:
         name:
           dataType: 'string'
         url:
@@ -82,7 +82,7 @@ describe 'oomphRedisAdaptor#destroy', ->
   afterEach (done) ->
     @redis.flushdb()
     done()
-  
+
   afterAll (done) ->
     @redis.flushdb()
     @redis.end()

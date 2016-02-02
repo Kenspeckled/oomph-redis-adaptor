@@ -12,12 +12,12 @@ describe 'oomphRedisAdaptor#where', ->
     done()
 
   beforeEach ->
-    @parentObject = 
+    @parentObject =
       className: 'TestWhereClass'
-      redis: @redis 
+      redis: @redis
       create: create
       find: find
-      classAttributes: 
+      classAttributes:
         name:
           dataType: 'string'
         url:
@@ -60,10 +60,10 @@ describe 'oomphRedisAdaptor#where', ->
         boolean:
           dataType: 'boolean'
     @where = where.bind(@parentObject)
-    referenceModelparentObject = 
+    referenceModelparentObject =
       className: 'Reference'
-      redis: @redis 
-      classAttributes: 
+      redis: @redis
+      classAttributes:
         secondId:
           dataType: 'string'
           identifiable: true
@@ -72,12 +72,12 @@ describe 'oomphRedisAdaptor#where', ->
   afterEach (done) ->
     @redis.flushdb()
     done()
-  
+
   afterAll (done) ->
     @redis.flushdb()
     @redis.end()
     done()
-  
+
   it 'should remove temporary sorted sets', (done) ->
     testPromise1 = @parentObject.create( url: 'uniqueValue1', integer: 1 )
     testPromise2 = @parentObject.create( url: 'uniqueValue2', integer: 1 )

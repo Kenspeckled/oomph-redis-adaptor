@@ -11,11 +11,11 @@ describe 'oomphRedisAdaptor#findBy', ->
     done()
 
   beforeEach ->
-    @parentObject = 
+    @parentObject =
       className: 'TestFindByClass'
-      redis: @redis 
+      redis: @redis
       create: create
-      classAttributes: 
+      classAttributes:
         name:
           dataType: 'string'
         url:
@@ -62,7 +62,7 @@ describe 'oomphRedisAdaptor#findBy', ->
   afterEach (done) ->
     @redis.flushdb()
     done()
-  
+
   afterAll (done) ->
     @redis.flushdb()
     @redis.end()
@@ -91,6 +91,6 @@ describe 'oomphRedisAdaptor#findBy', ->
   it 'should reject if no object is found', (done) ->
     findByPromise = @findBy(url: 'urlNotFound')
     findByPromise.catch (returnValue) ->
-      expect(returnValue).toEqual new Error "Not Found" 
+      expect(returnValue).toEqual new Error "Not Found"
       done()
 

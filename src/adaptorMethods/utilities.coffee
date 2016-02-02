@@ -84,7 +84,7 @@ utilities =
     kebabCaseStr = _.kebabCase(str)
     match = kebabCaseStr.match /-(\w+)$/
     if match
-      lastWord = match[1] 
+      lastWord = match[1]
     else
       lastWord = kebabCaseStr
     kebabCaseStr.replace new RegExp(lastWord + '$'), pluralize(lastWord)

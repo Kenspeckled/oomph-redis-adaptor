@@ -5,17 +5,17 @@ _ = require 'lodash'
 redis = require 'redis'
 
 describe 'oomphRedisAdaptor#find', ->
-  
+
   beforeAll (done) ->
     @redis = redis.createClient(1111, 'localhost')
     done()
 
   beforeEach ->
-    @parentObject = 
+    @parentObject =
       className: 'TestUpdateClass'
       redis: @redis
       create: create
-      classAttributes: 
+      classAttributes:
         name:
           dataType: 'string'
         url:
@@ -29,10 +29,10 @@ describe 'oomphRedisAdaptor#find', ->
           many: true
           referenceModelName: 'Reference'
     @find = find.bind(@parentObject)
-    referenceModelparentObject = 
+    referenceModelparentObject =
       className: 'Reference'
-      redis: @redis 
-      classAttributes: 
+      redis: @redis
+      classAttributes:
         secondId:
           dataType: 'string'
           identifiable: true
@@ -45,7 +45,7 @@ describe 'oomphRedisAdaptor#find', ->
   afterEach (done) ->
     @redis.flushdb()
     done()
-  
+
   afterAll (done) ->
     @redis.flushdb()
     @redis.end()
@@ -53,7 +53,7 @@ describe 'oomphRedisAdaptor#find', ->
 
 
   beforeAll ->
-    parentObject = 
+    parentObject =
       classAttributes: {}
     @find = find.bind(parentObject)
 

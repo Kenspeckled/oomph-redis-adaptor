@@ -34,7 +34,7 @@ where = (args) ->
   self = this
   args ||= {}
   args.sortBy ||= (if args.includes then 'relevance' else 'id')
-  args.sortDirection ||= 'desc' 
+  args.sortDirection ||= 'desc'
   args.sortDirection.toLowerCase()
   args.limit ||= null
   args.offset ||= null
@@ -104,9 +104,9 @@ where = (args) ->
         sortedSetKeys.push  name: self.className + "#" + option + ":" + optionValue
       when 'reference'
         referenceModelName = self.classAttributes[option].referenceModelName
-        if referenceModelName 
+        if referenceModelName
           namespace = self.classAttributes[option].reverseReferenceAttribute || option
-          if self.classAttributes[option].many 
+          if self.classAttributes[option].many
             if optionValue.includesAllOf
               _.each optionValue.includesAllOf, (id) ->
                 sortedSetKeys.push name: referenceModelName + ':' + id + '#' + namespace + ':' + self.className + 'Refs'
@@ -119,7 +119,7 @@ where = (args) ->
                 unionSortedSetKeys.push name: referenceModelName + ':' + id + '#' + namespace + ':' + self.className + 'Refs'
             else
               sortedSetKeys.push name: referenceModelName + ':' + optionValue + '#' + namespace + ':' + self.className + 'Refs'
-  prepareWhereConditionPromise = Promise.all(whereConditionPromises).then -> 
+  prepareWhereConditionPromise = Promise.all(whereConditionPromises).then ->
     if _.isEmpty(unionSortedSetKeys)
       keywordSearchPromise
     else

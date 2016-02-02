@@ -13,12 +13,12 @@ describe 'oomphRedisAdaptor#all', ->
     done()
 
   beforeEach ->
-    @parentObject = 
+    @parentObject =
       className: 'TestWhereClass'
-      redis: @redis 
+      redis: @redis
       create: create
       find: find
-      classAttributes: 
+      classAttributes:
         name:
           dataType: 'string'
         url:
@@ -65,12 +65,12 @@ describe 'oomphRedisAdaptor#all', ->
   afterEach (done) ->
     @redis.flushdb()
     done()
-  
+
   afterAll (done) ->
     @redis.flushdb()
     @redis.end()
     done()
-  
+
   it 'should return a promise', ->
     testObject = @all()
     expect(testObject).toEqual jasmine.any(Promise)
@@ -83,9 +83,9 @@ describe 'oomphRedisAdaptor#all', ->
       allPromise = @all()
       allPromise.done (returnValue) ->
         [item1, item2, item3] = returnValue.items
-        expect(returnValue.items).toContain item1 
-        expect(returnValue.items).toContain item2 
-        expect(returnValue.items).toContain item3 
+        expect(returnValue.items).toContain item1
+        expect(returnValue.items).toContain item2
+        expect(returnValue.items).toContain item3
         expect(returnValue.items.length).toEqual 3
         expect(returnValue.total).toEqual 3
         done()

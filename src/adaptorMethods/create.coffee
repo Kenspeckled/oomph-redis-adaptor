@@ -7,10 +7,9 @@ create = (props, skipValidation, skipAfterSave) ->
   sendAttributesForSaving.apply(self, [props, skipValidation]).then (writtenObject) ->
     #throw new Error 'Write error' if !writtenObject
     redisFind.apply(self, [writtenObject.id]).then (found) ->
-      afterCreatePromise = if found.afterCreate? then found.afterCreate() else null 
-      afterSavePromise = if found.afterSave? and !skipAfterSave then found.afterSave() else null 
+      afterCreatePromise = if found.afterCreate? then found.afterCreate() else null
+      afterSavePromise = if found.afterSave? and !skipAfterSave then found.afterSave() else null
       Promise.all([afterSavePromise, afterCreatePromise]).then ->
         found
-    
 
 module.exports = create

@@ -38,7 +38,7 @@ update = (id, updateFields, skipValidation, skipAfterSave) ->
       newValue = updateFields[attr]
       updateFieldsDiff[attr] = newValue
       # if there is an actual change and a value to change to
-      if !(newValue == undefined or newValue == null) and (newValue != originalValue) or remove 
+      if !(newValue == undefined or newValue == null) and (newValue != originalValue) or remove
         obj = self.classAttributes[attr]
         return if !obj
         switch obj.dataType
@@ -77,7 +77,7 @@ update = (id, updateFields, skipValidation, skipAfterSave) ->
       sendAttributesForSaving.apply(self, [updateFieldsDiff, skipValidation]).then (writtenObj) ->
         Promise.all(callbackPromises).then ->
           redisFind.apply(self, [writtenObj.id]).then (found) ->
-            afterSavePromise = if found.afterSave? and !skipAfterSave then found.afterSave() else null 
+            afterSavePromise = if found.afterSave? and !skipAfterSave then found.afterSave() else null
             Promise.all([afterSavePromise]).then ->
               found
 

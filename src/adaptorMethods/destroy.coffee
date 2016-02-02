@@ -15,5 +15,5 @@ destroy = (id) ->
       @redis.del @className + ':' + id, (err, response) ->
         return reject(err) if err
         resolve(true)
-  
+
 module.exports = destroy

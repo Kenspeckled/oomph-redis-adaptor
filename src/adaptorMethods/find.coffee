@@ -8,7 +8,7 @@ idToSeconds = (id) ->
   parseInt(id.slice(0, -numberOfExtraCharactersOnId), 36)
 
 idToCreatedAtDate = (id) ->
-  new Date idToSeconds(id)
+  new Date(idToSeconds(id))
 
 createObjectFromHash = (hash, modelClass) ->
   obj = {}
@@ -20,7 +20,7 @@ createObjectFromHash = (hash, modelClass) ->
     if propertyCastType
       if propertyCastType[1] == 'b' # cast as boolean
         obj[plainKey] = (value == 'true')
-      else if propertyCastType[1] == 'i' # cast as integer 
+      else if propertyCastType[1] == 'i' # cast as integer
         obj[plainKey] = parseInt(value)
     else
       obj[key] = value
@@ -41,7 +41,7 @@ find = (id) ->
     for propertyName in Object.keys(self.classAttributes)
       propertyValue = hash[propertyName]
       attrSettings = self.classAttributes[propertyName]
-      continue if _.isUndefined(propertyValue) 
+      continue if _.isUndefined(propertyValue)
       if attrSettings.dataType == 'reference'
         if attrSettings.many
           getReferenceIdsFn = (propertyName, referenceModelName) ->

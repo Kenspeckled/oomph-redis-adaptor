@@ -12,12 +12,12 @@ describe 'oomphRedisAdaptor#update', ->
     done()
 
   beforeEach ->
-    @parentObject = 
+    @parentObject =
       className: 'TestUpdateClass'
       redis: @redis
       create: create
       find: find
-      classAttributes: 
+      classAttributes:
         name:
           dataType: 'string'
         url:
@@ -80,7 +80,7 @@ describe 'oomphRedisAdaptor#update', ->
   afterEach (done) ->
     @redis.flushdb()
     done()
-  
+
   afterAll (done) ->
     @redis.flushdb()
     @redis.end()
@@ -108,7 +108,7 @@ describe 'oomphRedisAdaptor#update', ->
       expectedTestObj.one = 111
       expect(obj).toEqual expectedTestObj
       done()
-      
+
   it 'should throw an error when validations fail', (done) ->
     @parentObject.classAttributes.boolean =
       dataType: 'boolean'
@@ -162,7 +162,7 @@ describe 'oomphRedisAdaptor#update', ->
         done()
 
   it 'removes from a set', (done) ->
-    @parentObject.classAttributes.linkedModel = 
+    @parentObject.classAttributes.linkedModel =
       dataType: 'reference'
       many: true
       referenceModelName: 'LinkedModel'
