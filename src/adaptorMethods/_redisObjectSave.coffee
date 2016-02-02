@@ -82,13 +82,13 @@ writeAttributes = (props) ->
       switch obj.dataType
         when 'integer'
           if storableProps[attr] or storableProps[attr] == 0
-            storableProps[attr + '[i]'] = props[attr]
             props[attr] = ~~props[attr] #override original props
+            storableProps[attr + '[i]'] = props[attr]
             delete storableProps[attr]
         when 'boolean'
           if storableProps[attr]?
-            storableProps[attr + '[b]'] = props[attr]
             props[attr] = if props[attr] == 'false' then false else !!props[attr] #override original props
+            storableProps[attr + '[b]'] = props[attr]
             delete storableProps[attr]
         when 'reference'
           if obj.many
@@ -97,21 +97,21 @@ writeAttributes = (props) ->
         when 'string'
           if obj.identifier
             identifier = _utilities.urlString(props[attr])
-            storableProps[attr] = identifier
             props[attr] = identifier #override original props
-          if obj.url and obj.urlBaseAttribute and props[obj.urlBaseAttribute] 
+            storableProps[attr] = identifier
+          if obj.url and obj.urlBaseAttribute and props[obj.urlBaseAttribute]
             findExistingAttr = (attr, identifier) ->
               isUnique = false
               condition = -> !isUnique
               counter = 0
               _utilities.promiseWhile condition, ->
                 new Promise (resolve) ->
-                  modifiedIdentifier = identifier 
+                  modifiedIdentifier = identifier
                   modifiedIdentifier += ('-' + counter) if counter > 0
                   counter += 1
                   self.redis.get self.className + "#" + attr + ':' + modifiedIdentifier, (err, res) ->
-                    storableProps[attr] = modifiedIdentifier
                     props[attr] = modifiedIdentifier #override original props
+                    storableProps[attr] = modifiedIdentifier
                     isUnique = true if !res
                     resolve()
             if newObjectFlag # only set url once - this value should not update
@@ -138,7 +138,7 @@ writeAttributes = (props) ->
       switch obj.dataType
         when 'integer'
           sortedSetName = self.className + ">" + attr
-          multi.zadd sortedSetName, parseInt(value), props.id #sorted set
+          multi.zadd sortedSetName, value, props.id #sorted set
         when 'string'
           if obj.sortable
             sortedSetName = self.className + ">" + attr
@@ -157,7 +157,7 @@ writeAttributes = (props) ->
             multi.zadd self.className + "#" + attr + ":" + value, 1, props.id #set
         when 'reference'
           namespace = obj.reverseReferenceAttribute || attr
-          if obj.many 
+          if obj.many
             #FIXME: Does this work? !!!!!
             #multipleValues = _.compact(value.split(","))
             multipleValues = value
