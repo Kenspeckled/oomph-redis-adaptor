@@ -82,7 +82,7 @@ writeAttributes = (props) ->
       switch obj.dataType
         when 'integer'
           if storableProps[attr] or storableProps[attr] == 0
-            props[attr] = ~~props[attr] #override original props
+            props[attr] = +props[attr] #override original props
             storableProps[attr + '[i]'] = props[attr]
             delete storableProps[attr]
         when 'boolean'
