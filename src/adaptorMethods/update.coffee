@@ -38,7 +38,7 @@ update = (id, updateFields, skipValidation, skipAfterSave) ->
       newValue = updateFields[attr]
       updateFieldsDiff[attr] = newValue
       # if there is an actual change and a value to change to
-      if !(newValue == undefined or newValue == null) and (newValue != originalValue) or remove
+      if !(newValue == undefined or newValue == null) and (originalValue and newValue != originalValue) or remove
         obj = self.classAttributes[attr]
         return if !obj
         switch obj.dataType
