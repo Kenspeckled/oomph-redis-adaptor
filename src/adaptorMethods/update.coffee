@@ -42,7 +42,7 @@ update = (id, updateFields, skipValidation, skipAfterSave) ->
         obj = self.classAttributes[attr]
         return if !obj
         switch obj.dataType
-          when 'integer'
+          when 'integer', 'float'
             sortedSetName = self.className + '>' + attr
             multi.zrem sortedSetName, id
           when 'text'

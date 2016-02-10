@@ -22,6 +22,8 @@ createObjectFromHash = (hash, modelClass) ->
         obj[plainKey] = (value == 'true')
       else if propertyCastType[1] == 'i' # cast as integer
         obj[plainKey] = parseInt(value)
+      else if propertyCastType[1] == 'f' # cast as float 
+        obj[plainKey] = parseFloat(value)
     else
       obj[key] = value
   return new modelClass(obj) if modelClass and modelClass.prototype

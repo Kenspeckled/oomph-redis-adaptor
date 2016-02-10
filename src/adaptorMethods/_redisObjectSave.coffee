@@ -82,8 +82,13 @@ writeAttributes = (props) ->
       switch obj.dataType
         when 'integer'
           if storableProps[attr] or storableProps[attr] == 0
-            props[attr] = +props[attr] #override original props
+            props[attr] = parseInt(props[attr]) #override original props
             storableProps[attr + '[i]'] = props[attr]
+            delete storableProps[attr]
+        when 'float'
+          if storableProps[attr] or storableProps[attr] == 0
+            props[attr] = parseFloat(props[attr]) #override original props
+            storableProps[attr + '[f]'] = props[attr]
             delete storableProps[attr]
         when 'boolean'
           if storableProps[attr]?
@@ -136,7 +141,7 @@ writeAttributes = (props) ->
       continue if props[attr] == undefined #props[attr] can be false for boolean dataType
       value = props[attr]
       switch obj.dataType
-        when 'integer'
+        when 'integer', 'float'
           sortedSetName = self.className + ">" + attr
           multi.zadd sortedSetName, value, props.id #sorted set
         when 'string'

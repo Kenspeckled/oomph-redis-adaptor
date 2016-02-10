@@ -79,7 +79,7 @@ where = (args) ->
     optionValue = args[option]
     continue if !self.classAttributes[option]
     switch self.classAttributes[option].dataType
-      when 'integer' #add less than and greater than functionality
+      when 'integer', 'float' #add less than and greater than functionality
         tempIntegerKey = 'temporaryIntegerSet:' + _utilities.randomString(5)
         integerSortedSetName = self.className + '>' + option
         minValue = '-inf'
