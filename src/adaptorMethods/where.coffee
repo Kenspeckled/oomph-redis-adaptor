@@ -159,13 +159,12 @@ where = (args) ->
             self.redis.del idKey, ->
               resolve {ids, totalResults, facetResults}
     matchedIdsPromise.then (resultObject) ->
-      ids = resultObject.ids
       if args.sortBy == 'random'
-        if args.limit
-          ids = _.sample ids, args.limit
-        else
-          ids = _.shuffle ids
-      promises = _.map ids, (id) ->
+        idArray = _utilities.seededShuffle(resultObject.ids, args.seed)
+        sliceStart = +args.offset
+        sliceEnd = if args.limit then (args.limit + args.offset) else idArray.length
+        idArray = idArray.slice(sliceStart, sliceEnd)
+      promises = _.map idArray, (id) ->
         redisFind.apply(self, [id])
       Promise.all(promises).then (resultItems) ->
         _resultObject =
