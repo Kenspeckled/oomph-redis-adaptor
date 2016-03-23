@@ -1,6 +1,6 @@
 Promise = require 'promise'
 _ = require 'lodash'
-_utilities = require './utilities'
+_utilities = require 'oomph/lib/utilities'
 
 numberOfExtraCharactersOnId = 2 # FIXME: duplicated variable
 

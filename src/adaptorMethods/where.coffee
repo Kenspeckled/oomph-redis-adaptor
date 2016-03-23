@@ -1,6 +1,6 @@
 Promise = require 'promise'
 _ = require 'lodash'
-_utilities = require './utilities'
+_utilities = require 'oomph/lib/utilities'
 redisFind = require './find'
 
 findKeywordsInAnyFields = (fields, keywords, weightOptions) ->
@@ -160,11 +160,10 @@ where = (args) ->
               resolve {ids, totalResults, facetResults}
     matchedIdsPromise.then (resultObject) ->
       idArray = resultObject.ids
+      sliceStart = +args.offset
+      sliceEnd = if args.limit then (args.limit + args.offset) else idArray.length
       if args.sortBy == 'random'
-        idArray = _utilities.seededShuffle(idArray, args.seed)
-        sliceStart = +args.offset
-        sliceEnd = if args.limit then (args.limit + args.offset) else idArray.length
-        idArray = idArray.slice(sliceStart, sliceEnd)
+        idArray = _utilities.seededShuffle(idArray, args.seed).slice(sliceStart, sliceEnd)
       promises = _.map idArray, (id) ->
         redisFind.apply(self, [id])
       Promise.all(promises).then (resultItems) ->

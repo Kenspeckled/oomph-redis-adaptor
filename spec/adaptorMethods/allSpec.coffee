@@ -4,7 +4,7 @@ find = require '../../src/adaptorMethods/find'
 Promise = require 'promise'
 _ = require 'lodash'
 redis = require 'redis'
-_utilities = require '../../src/adaptorMethods/utilities'
+_utilities = require 'oomph/lib/utilities'
 
 describe 'oomphRedisAdaptor#all', ->
 

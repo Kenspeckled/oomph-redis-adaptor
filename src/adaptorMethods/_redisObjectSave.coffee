@@ -1,7 +1,7 @@
 Promise = require 'promise'
 oomph = require 'oomph'
 _ = require 'lodash'
-_utilities = require './utilities'
+_utilities = require 'oomph/lib/utilities'
 
 numberOfExtraCharactersOnId = 2
 
