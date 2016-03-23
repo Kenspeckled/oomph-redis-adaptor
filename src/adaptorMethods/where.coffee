@@ -159,8 +159,9 @@ where = (args) ->
             self.redis.del idKey, ->
               resolve {ids, totalResults, facetResults}
     matchedIdsPromise.then (resultObject) ->
+      idArray = resultObject.ids
       if args.sortBy == 'random'
-        idArray = _utilities.seededShuffle(resultObject.ids, args.seed)
+        idArray = _utilities.seededShuffle(idArray, args.seed)
         sliceStart = +args.offset
         sliceEnd = if args.limit then (args.limit + args.offset) else idArray.length
         idArray = idArray.slice(sliceStart, sliceEnd)
